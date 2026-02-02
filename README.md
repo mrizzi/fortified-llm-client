@@ -177,8 +177,21 @@ Apache-2.0
 
 ## Contributing
 
-Contributions are welcome. Please ensure all tests pass and code follows Rust conventions.
+Contributions are welcome! To ensure smooth collaboration, please follow these steps:
 
-## Documentation
+1. **File an Issue First**: Before starting work, create an issue describing:
+   - The bug you want to fix, or
+   - The feature you want to add, or
+   - The improvement you want to make
 
-For detailed usage instructions, see [CLAUDE.md](CLAUDE.md).
+2. **Wait for Discussion**: Allow maintainers and community members to discuss the proposal. This helps avoid duplicate work and ensures alignment with project goals.
+
+3. **Open a Pull Request**: Once the issue is discussed and approved, you can:
+   - Fork the repository
+   - Create a feature branch
+   - Make your changes
+   - Ensure all tests pass: `cargo test`
+   - Follow Rust conventions: `cargo fmt` and `cargo clippy`
+   - Open a PR referencing the issue number
+
+**Note**: Pull requests without a corresponding issue may be closed. This process helps maintain code quality and project direction.
