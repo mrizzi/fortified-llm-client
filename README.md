@@ -1,2 +1,184 @@
 # secure-llm-client
-LLM expandible client with input and output configurable safeguards
+
+A Rust library and CLI tool for secure interaction with Large Language Model (LLM) providers, featuring built-in security guardrails, PDF extraction, and multi-provider support.
+
+## Features
+
+**Multi-Provider Support**
+- OpenAI-compatible APIs
+- Ollama local models
+- Automatic provider detection from API URL
+- Unified interface via `LlmProvider` trait
+
+**Security Guardrails**
+- Input validation (pattern matching, PII detection, prompt injection detection)
+- Output validation with quality scoring
+- LLM-based guardrails:
+  - Llama Guard (MLCommons safety taxonomy, categories S1-S13)
+  - Llama Prompt Guard (jailbreak detection)
+  - GPT OSS Safeguard (GPT-4 based policy validation)
+- Hybrid guardrails with configurable execution modes (sequential/parallel) and aggregation strategies (any/all/majority)
+- Customizable pattern-based rules via config files
+
+**PDF Processing**
+- Extract text from PDFs using external Docling CLI
+- File size validation for resource protection
+- Direct integration into LLM prompts
+
+**Token Management**
+- Model-specific token estimation
+- Context limit validation
+- Per-request token budget control
+
+**Response Formatting**
+- Plain text output (default)
+- JSON object generation
+- JSON Schema validation for structured responses
+
+**Configuration**
+- CLI arguments with full control
+- TOML/JSON configuration files
+- Environment variable support for API keys
+- Figment-based config merging (CLI args override file values)
+
+**Safety & Reliability**
+- Request timeout protection (configurable, default 300s)
+- Input length limits
+- Atomic file writes for output
+- Comprehensive error handling
+
+## Installation
+
+### Prerequisites
+
+- Rust 1.70 or later
+- (Optional) Docling CLI for PDF extraction
+
+### Build from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/mrizzi/secure-llm-client
+cd secure-llm-client
+
+# Build the CLI and library
+cargo build --release
+
+# Binary will be at target/release/secure-llm-client
+```
+
+## Usage
+
+### CLI
+
+```bash
+# Basic usage
+secure-llm-client --api-url http://localhost:11434/v1/chat/completions \
+  --model llama3 \
+  --user-text "Explain Rust ownership"
+
+# With guardrails config file
+secure-llm-client --config config.toml --user-text "Your prompt here"
+
+# PDF extraction with LLM analysis
+secure-llm-client --api-url https://api.openai.com/v1/chat/completions \
+  --model gpt-4 \
+  --pdf-input document.pdf \
+  --system-text "Summarize the key points from this document"
+
+# JSON Schema validation
+secure-llm-client --api-url https://api.openai.com/v1/chat/completions \
+  --model gpt-4 \
+  --user-text "Generate a product catalog" \
+  --response-format json-schema \
+  --response-format-schema-strict schema.json
+
+# Output to file
+secure-llm-client --api-url http://localhost:11434/v1/chat/completions \
+  --model llama3 \
+  --user-text "Hello" \
+  --output response.json
+```
+
+### Library API
+
+```rust
+use secure_llm_client::{evaluate, EvaluationConfig};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = EvaluationConfig {
+        api_url: "http://localhost:11434/v1/chat/completions".to_string(),
+        model: "llama3".to_string(),
+        user_prompt: "Explain Rust ownership".to_string(),
+        ..Default::default()
+    };
+
+    let result = evaluate(config).await?;
+    println!("Response: {}", result.content);
+    Ok(())
+}
+```
+
+### Configuration File
+
+Create a `config.toml` file:
+
+```toml
+api_url = "http://localhost:11434/v1/chat/completions"
+model = "llama3"
+temperature = 0.7
+max_tokens = 2000
+validate_tokens = true
+
+[guardrails.input]
+type = "patterns"
+max_length_bytes = 1048576
+
+[guardrails.input.patterns]
+detect_pii = true
+detect_prompt_injection = true
+
+[guardrails.output]
+type = "patterns"
+
+[guardrails.output.patterns]
+detect_toxic = true
+```
+
+## Architecture
+
+The codebase follows a layered architecture:
+
+1. **CLI Layer**: Argument parsing and config merging
+2. **Library Layer**: Public API (`evaluate()`, `evaluate_with_guardrails()`)
+3. **Client Layer**: Provider-agnostic LLM client abstraction
+4. **Provider Layer**: Provider-specific implementations
+5. **Guardrails Layer**: Security validation pipeline
+
+Evaluation pipeline: PDF Extraction → Input Guardrails → Token Validation → LLM Invocation → Output Guardrails → Metadata Generation
+
+## Testing
+
+```bash
+# Run all tests
+cargo test
+
+# Run specific test
+cargo test test_name
+
+# Run with verbose output
+cargo test -- --nocapture
+```
+
+## License
+
+Apache-2.0
+
+## Contributing
+
+Contributions are welcome. Please ensure all tests pass and code follows Rust conventions.
+
+## Documentation
+
+For detailed usage instructions, see [CLAUDE.md](CLAUDE.md).
