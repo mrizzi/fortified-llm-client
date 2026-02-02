@@ -1,0 +1,34 @@
+# Default Input Guardrail Patterns
+# These are the built-in patterns for input validation
+# Format: scope<TAB>pattern<TAB>description<TAB>severity
+
+# ============================================================================
+# PII Detection Patterns
+# ============================================================================
+
+# SSN patterns
+input	\b\d{3}-\d{2}-\d{4}\b	SSN (XXX-XX-XXXX format)	critical
+input	\b\d{9}\b	Potential SSN (9 digits)	high
+
+# Credit card patterns
+input	\b(?:\d{4}[-\s]?){3}\d{4}\b	Credit card number	critical
+
+# Email addresses
+input	\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b	Email address	medium
+
+# Phone numbers
+input	\b(\+\d{1,2}\s?)?(\(\d{3}\)|\d{3})[-.\s]?\d{3}[-.\s]?\d{4}\b	Phone number	medium
+
+# ============================================================================
+# Content Filter Patterns
+# ============================================================================
+
+# Prompt injection attempts
+input	(?i)(ignore previous|forget previous|disregard previous)	Prompt injection attempt	critical
+input	(?i)(override instructions|bypass instructions)	Instruction override attempt	critical
+
+# Command injection
+input	[;&|`$(){}\\[\\]<>]	Shell metacharacters (potential command injection)	high
+
+# SQL injection
+input	(?i)(union select|drop table|insert into|delete from)	SQL injection pattern	high

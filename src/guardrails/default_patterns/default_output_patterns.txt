@@ -1,0 +1,21 @@
+# Default Output Guardrail Patterns
+# These are the built-in patterns for output validation
+# Format: scope<TAB>pattern<TAB>description<TAB>severity
+
+# ============================================================================
+# Safety Patterns
+# ============================================================================
+
+# Dangerous content
+output	(?i)how to (build|make|create) (a |an )?bomb	Dangerous content: bomb instructions	critical
+output	(?i)(illegal|unlawful) activity	Illegal activity reference	critical
+output	(?i)(hack|exploit|breach) (a |the )?(system|network|database)	Hacking/exploit content	critical
+
+# ============================================================================
+# Hallucination Markers
+# ============================================================================
+
+# Uncertainty markers
+output	(?i)(I think|I believe|probably|maybe|possibly)	Uncertainty marker	medium
+output	(?i)(according to|based on) (my|the) (knowledge|understanding)	Vague citation	medium
+output	(?i)(might|could|may) be	Speculative language	low
