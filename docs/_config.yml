@@ -1,0 +1,57 @@
+# Site settings
+title: Fortified LLM Client
+description: "Rust library and CLI tool for LLM interactions fortified by multi-layered security guardrails"
+url: "https://mrizzi.github.io"
+baseurl: "/fortified-llm-client"
+repository: mrizzi/fortified-llm-client
+
+# Theme
+remote_theme: just-the-docs/just-the-docs@v0.8.2
+
+# Color scheme
+color_scheme: light
+
+# Footer
+footer_content: 'Copyright &copy; 2025. Licensed under <a href="https://github.com/mrizzi/fortified-llm-client/blob/main/LICENSE">Apache-2.0</a>.'
+
+# Search
+search_enabled: true
+search:
+  heading_level: 3
+  previews: 3
+  preview_words_before: 5
+  preview_words_after: 10
+
+# Navigation
+nav_sort: title
+nav_fold: true
+
+# Code highlighting
+highlighter: rouge
+kramdown:
+  syntax_highlighter_opts:
+    block:
+      line_numbers: true
+
+# Exclude from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - README.md
+  - vendor/
+
+# Top-right navigation links
+aux_links:
+  "GitHub Repository":
+    - "https://github.com/mrizzi/fortified-llm-client"
+
+# Back to top
+back_to_top: true
+back_to_top_text: "Back to top"
+
+# Edit links
+gh_edit_link: true
+gh_edit_link_text: "Edit this page on GitHub"
+gh_edit_repository: "https://github.com/mrizzi/fortified-llm-client"
+gh_edit_branch: "main"
+gh_edit_view_mode: "edit"

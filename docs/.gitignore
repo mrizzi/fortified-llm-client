@@ -1,0 +1,12 @@
+# Jekyll build artifacts
+_site/
+.sass-cache/
+.jekyll-cache/
+.jekyll-metadata
+
+# Ruby dependencies
+Gemfile.lock
+vendor/
+
+# macOS
+.DS_Store
