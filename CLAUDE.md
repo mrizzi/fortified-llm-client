@@ -74,12 +74,22 @@ cargo clippy -- -D warnings
 
 # 4. Run all tests with warnings as errors (requires docling: pip install docling)
 RUSTFLAGS="-D warnings" cargo test
+
+# 5. If you changed APIs/CLI/features: verify documentation is updated
+cd docs && bundle exec jekyll serve
+# Check that your changes are documented and render correctly
 ```
 
 **Quick one-liner to run all CI checks:**
 ```bash
 cargo +nightly fmt --check && RUSTFLAGS="-D warnings" cargo check && cargo clippy -- -D warnings && RUSTFLAGS="-D warnings" cargo test
 ```
+
+**Documentation update checklist** (if you changed code that affects docs):
+- [ ] Updated relevant documentation pages (see "Documentation" section)
+- [ ] Tested docs locally: `cd docs && bundle exec jekyll serve`
+- [ ] Verified code examples are valid
+- [ ] Checked internal links work
 
 ## Architecture
 
@@ -198,6 +208,123 @@ Tests are organized by purpose:
 - **Guardrail tests**: `tests/guardrail*.rs` - Guardrail validation logic
 
 **Test fixtures**: Located in `tests/fixtures/` (PDF samples, JSON schemas, markdown files)
+
+## Documentation
+
+The project has a comprehensive documentation site built with Jekyll and the just-the-docs theme.
+
+### Location and Deployment
+
+- **Source**: `/docs` directory (Jekyll + just-the-docs theme)
+- **Deployed to**: https://mrizzi.github.io/fortified-llm-client/
+- **Auto-deployment**: GitHub Pages automatically builds and deploys on push to `main`
+
+### Documentation Structure
+
+```
+docs/
+├── getting-started/    # Installation, prerequisites, quick start
+├── user-guide/         # CLI usage, library API, configuration, PDF, tokens, response formats
+├── architecture/       # Layers, evaluation pipeline, providers, testing
+├── guardrails/         # All validation types (patterns, llama-guard, hybrid, etc.)
+├── examples/           # Code examples for common use cases
+├── advanced/           # Config merging, error handling, security, extending
+└── contributing/       # Development setup, CI checklist, code guidelines
+```
+
+### When to Update Documentation
+
+**CRITICAL**: Always update documentation when making these changes:
+
+#### 1. CLI Arguments (`src/main.rs::Args`)
+- **Update**: `docs/user-guide/cli-usage.md`
+- **What to add**: New flag with description, usage examples, conflicts, defaults
+- **Example section**: Add to appropriate category (Core Options, Prompts, Sampling, etc.)
+
+#### 2. Public Library API (`src/lib.rs`)
+- **Update**: `docs/user-guide/library-api.md`
+- **What to add**: New functions, types, or changed signatures with examples
+- **Update**: Code examples if behavior changed
+
+#### 3. Guardrail Types (`src/guardrails/`)
+- **Update or create**: `docs/guardrails/[type].md`
+- **Update**: `docs/guardrails/index.md` to add to the types table
+- **Update**: `docs/examples/guardrails-config.md` with example configuration
+
+#### 4. Configuration Fields (`src/config.rs`, `src/config_builder.rs`)
+- **Update**: `docs/user-guide/configuration.md`
+- **What to add**: New field to "All Configuration Fields" table
+- **Update**: Example configs with the new field
+
+#### 5. Provider Support (`src/providers/`)
+- **Update**: `docs/architecture/providers.md`
+- **What to add**: New provider to supported providers list
+- **Update**: `docs/examples/multi-provider.md` with usage example
+
+#### 6. Error Types (`src/lib.rs::FortifiedError`)
+- **Update**: `docs/advanced/error-handling.md`
+- **What to add**: New error variant with description and recovery strategies
+
+#### 7. Evaluation Pipeline Changes (`src/lib.rs::evaluate_internal`)
+- **Update**: `docs/architecture/evaluation-pipeline.md`
+- **What to update**: Flow diagram and step descriptions
+
+#### 8. Testing Patterns (`tests/`)
+- **Update**: `docs/architecture/testing.md`
+- **What to add**: New test categories or fixture patterns
+
+### Testing Documentation Locally
+
+**Before committing documentation changes**, always test locally:
+
+```bash
+# Navigate to docs directory
+cd docs
+
+# Install dependencies (first time only)
+bundle install
+
+# Serve locally with auto-rebuild
+bundle exec jekyll serve
+
+# Visit in browser
+# http://localhost:4000/fortified-llm-client
+```
+
+**Verify**:
+- [ ] Page renders correctly (no formatting issues)
+- [ ] Code examples are valid (copy-paste ready)
+- [ ] Internal links work (no 404s)
+- [ ] Tables render properly
+- [ ] Syntax highlighting works for code blocks
+
+**Tip**: Jekyll watches for changes and auto-rebuilds. Keep the server running while editing.
+
+### Documentation Style Guidelines
+
+When writing or updating documentation:
+
+1. **Use present tense**: "validates input" not "will validate input"
+2. **Code examples must be copy-paste ready**: No placeholders like `<your-key>`, use realistic examples
+3. **Include error examples**: Not just happy paths
+4. **Cross-reference related pages**: Use Liquid tags: `{% link path/to/page.md %}`
+5. **Use callouts for important info**:
+   - Warnings: `{: .warning }` followed by `> text`
+   - Notes: `{: .note }` followed by `> text`
+6. **Keep examples focused**: One concept per example
+7. **Update related pages**: If you change one page, check if related pages need updates
+
+### Quick Documentation Maintenance Checklist
+
+Use this before committing code changes:
+
+- [ ] Did I change CLI arguments? → Update `docs/user-guide/cli-usage.md`
+- [ ] Did I change public API? → Update `docs/user-guide/library-api.md`
+- [ ] Did I add/modify guardrails? → Update `docs/guardrails/`
+- [ ] Did I change config schema? → Update `docs/user-guide/configuration.md`
+- [ ] Did I add a provider? → Update `docs/architecture/providers.md`
+- [ ] Did I change error types? → Update `docs/advanced/error-handling.md`
+- [ ] Did I test docs locally? → Run `cd docs && bundle exec jekyll serve`
 
 ## Key Security Features
 
