@@ -185,23 +185,31 @@ Apache-2.0
 
 ## Contributing
 
-Contributions are welcome! To ensure smooth collaboration, please follow these steps:
+Contributions are welcome! Here's how to contribute effectively:
 
-1. **File an Issue First**: Before starting work, create an issue describing:
-   - The bug you want to fix, or
-   - The feature you want to add, or
-   - The improvement you want to make
+### For Bug Fixes
 
-2. **Wait for Discussion**: Allow maintainers and community members to discuss the proposal. This helps avoid duplicate work and ensures alignment with project goals.
+You can open a pull request directly **if you include**:
+- A test that reproduces the bug
+- Steps to reproduce in the PR description
+- The fix itself
 
-3. **Open a Pull Request**: Once the issue is discussed and approved, you can:
-   - Fork the repository
-   - Create a feature branch
-   - Make your changes
-   - Ensure all tests pass: `cargo test`
-   - Follow Rust conventions: `cargo +nightly fmt` and `cargo clippy`
-   - Open a PR referencing the issue number
+Alternatively, file an issue first to report the bug or discuss the approach before fixing it.
 
-**Note**: Pull requests without a corresponding issue may be closed. This process helps maintain code quality and project direction.
+### For Medium to Large Changes
+
+For new features or significant improvements, **we recommend** filing an issue first to:
+- Avoid duplicate work
+- Discuss the approach with maintainers
+- Ensure alignment with project goals
+
+### Pull Request Checklist
+
+When submitting a PR:
+- Fork the repository and create a feature branch
+- Make your changes with clear commit messages
+- Ensure all tests pass: `cargo test`
+- Follow Rust conventions: `cargo +nightly fmt` and `cargo clippy`
+- If there's a related issue, reference it in the PR description
 
 **Why `+nightly`?** The `cargo +nightly fmt` command is required because this project uses the `imports_granularity` feature in `rustfmt.toml`, which is only available in Rust nightly (see [tracking issue #4991](https://github.com/rust-lang/rustfmt/issues/4991)). Make sure you have the nightly toolchain installed: `rustup toolchain install nightly`.
