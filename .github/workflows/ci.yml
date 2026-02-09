@@ -135,30 +135,33 @@ jobs:
 
       - name: Pre-warm Docling Models
         run: |
-          echo "Pre-downloading Docling models to prevent race conditions during tests..."
+          echo "Triggering Docling model download via test PDF (standard pipeline only)..."
 
-          # Only download models for the 'standard' pipeline (used by tests)
-          # The 'vlm' pipeline requires 5GB+ vision models that exceed GitHub runner disk space
+          # Run docling on a test PDF to trigger natural model download
+          # This downloads ONLY models needed for standard pipeline (not 5GB+ vision models)
           MAX_ATTEMPTS=3
           ATTEMPT=1
 
           while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Downloading Docling models (standard pipeline only)..."
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Running docling to download models..."
 
-            # Download only standard pipeline models (skips large vision models)
-            if docling-tools models download --pipeline standard 2>&1 | tee /tmp/docling-download.log; then
-              echo "✓ Successfully downloaded Docling models for standard pipeline"
+            # Use simple.pdf to trigger model download for standard pipeline
+            if docling tests/fixtures/simple.pdf --pipeline standard --output /tmp/docling-warmup 2>&1 | tee /tmp/docling-warmup.log; then
+              echo "✓ Successfully warmed up Docling models (standard pipeline)"
 
               # Verify models were downloaded
               if [ -d "$HOME/.cache/docling/models" ]; then
                 echo "✓ Models cached at: $HOME/.cache/docling/models"
-                ls -lah "$HOME/.cache/docling/models" || true
+                du -sh "$HOME/.cache/docling/models" || true
               fi
+
+              # Clean up temp output
+              rm -rf /tmp/docling-warmup
 
               exit 0
             else
-              echo "⚠ Download attempt $ATTEMPT failed"
-              cat /tmp/docling-download.log || true
+              echo "⚠ Warmup attempt $ATTEMPT failed"
+              cat /tmp/docling-warmup.log || true
 
               if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
                 DELAY=$((2 ** ATTEMPT))  # Exponential backoff: 2, 4 seconds
@@ -169,6 +172,9 @@ jobs:
 
             ATTEMPT=$((ATTEMPT + 1))
           done
+
+          # Clean up temp files
+          rm -rf /tmp/docling-warmup
 
           # If all attempts fail, warn but don't fail CI
           # Tests have their own timeout handling
