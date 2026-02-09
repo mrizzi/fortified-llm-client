@@ -41,14 +41,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-registry-
 
-      - name: Cache cargo index
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-index-
-
       - name: Cache cargo build
         uses: actions/cache@v4
         with:
@@ -80,14 +72,6 @@ jobs:
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-registry-
-
-      - name: Cache cargo index
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-index-
 
       - name: Cache cargo build
         uses: actions/cache@v4
@@ -128,7 +112,7 @@ jobs:
       - name: Cache Docling models
         uses: actions/cache@v4
         with:
-          path: ~/.cache/docling/models
+          path: ~/.cache/huggingface/hub
           key: ${{ runner.os }}-docling-models-v1
           restore-keys: |
             ${{ runner.os }}-docling-models-
@@ -150,9 +134,9 @@ jobs:
               echo "✓ Successfully warmed up Docling models (standard pipeline)"
 
               # Verify models were downloaded
-              if [ -d "$HOME/.cache/docling/models" ]; then
-                echo "✓ Models cached at: $HOME/.cache/docling/models"
-                du -sh "$HOME/.cache/docling/models" || true
+              if [ -d "$HOME/.cache/huggingface/hub" ]; then
+                echo "✓ Models cached at: $HOME/.cache/huggingface/hub"
+                du -sh "$HOME/.cache/huggingface/hub" || true
               fi
 
               # Clean up temp output
@@ -189,14 +173,6 @@ jobs:
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-registry-
-
-      - name: Cache cargo index
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-index-
 
       - name: Cache cargo build
         uses: actions/cache@v4
