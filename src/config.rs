@@ -3,13 +3,18 @@ use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
 
 /// Configuration file request format (supports both JSON and TOML)
+///
+/// All fields are optional — config files are partial overlays merged with CLI args.
+/// Required-field validation happens in `ConfigBuilder::build()` after merging.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigFileRequest {
-    /// LLM API endpoint URL
-    pub api_url: String,
+    /// LLM API endpoint URL (required overall, but optional in config file — CLI can provide it)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api_url: Option<String>,
 
-    /// Model name/identifier
-    pub model: String,
+    /// Model name/identifier (required overall, but optional in config file — CLI can provide it)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
 
     /// Provider type (optional: "ollama" or "openai", auto-detected if not specified)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -43,9 +48,9 @@ pub struct ConfigFileRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pdf_file: Option<String>,
 
-    /// Sampling temperature (optional, default: 0.0)
-    #[serde(default = "default_temperature")]
-    pub temperature: f32,
+    /// Sampling temperature (optional, default applied by ConfigBuilder: 0.0)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
 
     /// Maximum response tokens (optional, default: None = model's maximum)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,9 +60,9 @@ pub struct ConfigFileRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub seed: Option<u64>,
 
-    /// Request timeout in seconds (optional, default: 300)
-    #[serde(default = "default_timeout")]
-    pub timeout_secs: u64,
+    /// Request timeout in seconds (optional, default applied by ConfigBuilder: 300)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timeout_secs: Option<u64>,
 
     /// Enable token validation (optional, default: false)
     #[serde(default)]
@@ -82,14 +87,6 @@ pub struct ConfigFileRequest {
     /// Guardrail configuration (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub guardrails: Option<GuardrailConfig>,
-}
-
-fn default_temperature() -> f32 {
-    0.0
-}
-
-fn default_timeout() -> u64 {
-    300
 }
 
 impl ConfigFileRequest {
@@ -123,10 +120,8 @@ impl ConfigFileRequest {
                 // Keep file path for metadata tracking (don't clear it)
             }
             (None, None) => {
-                return Err(CliError::InvalidArguments(
-                    "Config file must specify either 'system_prompt' or 'system_prompt_file'"
-                        .to_string(),
-                ));
+                // System prompt not in config file — may be provided via CLI args.
+                // Required-field validation happens later in ConfigBuilder::build().
             }
             (Some(_), None) => {
                 // Inline text provided, all good
@@ -220,9 +215,12 @@ mod tests {
         std::fs::write(&path, json).unwrap();
 
         let config = load_config_file(&path).unwrap();
-        assert_eq!(config.api_url, "http://localhost:11434/api/generate");
-        assert_eq!(config.model, "llama3");
-        assert_eq!(config.temperature, 0.5);
+        assert_eq!(
+            config.api_url,
+            Some("http://localhost:11434/api/generate".to_string())
+        );
+        assert_eq!(config.model, Some("llama3".to_string()));
+        assert_eq!(config.temperature, Some(0.5));
         assert_eq!(config.max_tokens, Some(1000));
 
         std::fs::remove_file(&path).ok();
@@ -244,9 +242,12 @@ mod tests {
         std::fs::write(&path, toml).unwrap();
 
         let config = load_config_file(&path).unwrap();
-        assert_eq!(config.api_url, "http://localhost:11434/api/generate");
-        assert_eq!(config.model, "llama3");
-        assert_eq!(config.temperature, 0.5);
+        assert_eq!(
+            config.api_url,
+            Some("http://localhost:11434/api/generate".to_string())
+        );
+        assert_eq!(config.model, Some("llama3".to_string()));
+        assert_eq!(config.temperature, Some(0.5));
         assert_eq!(config.max_tokens, Some(1000));
 
         std::fs::remove_file(&path).ok();
@@ -282,9 +283,9 @@ mod tests {
         std::fs::write(&path, json).unwrap();
 
         let config = load_config_file(&path).unwrap();
-        assert_eq!(config.temperature, 0.0); // default
+        assert_eq!(config.temperature, None); // not specified, no default at this layer
         assert_eq!(config.max_tokens, None); // default (use model's maximum)
-        assert_eq!(config.timeout_secs, 300); // default
+        assert_eq!(config.timeout_secs, None); // not specified, no default at this layer
         assert!(!config.validate_tokens); // default
 
         std::fs::remove_file(&path).ok();
@@ -303,8 +304,11 @@ mod tests {
         std::fs::write(&path, json).unwrap();
 
         let config = load_config_file(&path).unwrap();
-        assert_eq!(config.api_url, "http://localhost:11434/api/generate");
-        assert_eq!(config.model, "llama3");
+        assert_eq!(
+            config.api_url,
+            Some("http://localhost:11434/api/generate".to_string())
+        );
+        assert_eq!(config.model, Some("llama3".to_string()));
         assert_eq!(config.system_prompt, Some("You are helpful.".to_string()));
         assert!(config.user_prompt.is_none()); // user_prompt is optional
 

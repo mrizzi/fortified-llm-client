@@ -55,10 +55,10 @@ impl ConfigBuilder {
     pub fn merge_file_config(mut self, file_config: &ConfigFileRequest) -> Self {
         // Only set if not already set (CLI args take precedence)
         if self.api_url.is_none() {
-            self.api_url = Some(file_config.api_url.clone());
+            self.api_url = file_config.api_url.clone();
         }
         if self.model.is_none() {
-            self.model = Some(file_config.model.clone());
+            self.model = file_config.model.clone();
         }
         if self.provider.is_none() {
             if let Some(provider_str) = &file_config.provider {
@@ -94,7 +94,7 @@ impl ConfigBuilder {
             }
         }
         if self.temperature.is_none() {
-            self.temperature = Some(file_config.temperature);
+            self.temperature = file_config.temperature;
         }
         if self.max_tokens.is_none() {
             self.max_tokens = file_config.max_tokens;
@@ -103,7 +103,7 @@ impl ConfigBuilder {
             self.seed = file_config.seed;
         }
         if self.timeout_secs.is_none() {
-            self.timeout_secs = Some(file_config.timeout_secs);
+            self.timeout_secs = file_config.timeout_secs;
         }
         if self.validate_tokens.is_none() {
             self.validate_tokens = Some(file_config.validate_tokens);

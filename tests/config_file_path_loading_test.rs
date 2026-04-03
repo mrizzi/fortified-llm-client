@@ -6,7 +6,7 @@
 // REGRESSION: This bug existed where "system_prompt = 'path/to/file.md'" in config
 // would send the literal string "path/to/file.md" to the API instead of file content
 
-use fortified_llm_client::config::load_config_file;
+use fortified_llm_client::{config::load_config_file, config_builder::ConfigBuilder};
 use std::fs;
 use tempfile::NamedTempFile;
 
@@ -249,8 +249,9 @@ fn test_config_rejects_both_inline_and_file_for_user_prompt() {
 }
 
 #[test]
-fn test_config_rejects_missing_system_prompt() {
+fn test_config_allows_missing_system_prompt() {
     // Config with NO system prompt (neither inline nor file)
+    // This is valid because system prompt can be provided via CLI --system-text/--system-file
     let config_json = r#"{
         "api_url": "http://localhost:11434/v1/chat/completions",
         "model": "test-model",
@@ -261,19 +262,10 @@ fn test_config_rejects_missing_system_prompt() {
     let config_path = config_file.path().with_extension("json");
     fs::write(&config_path, config_json).unwrap();
 
-    // Should fail because system_prompt is required
-    let result = load_config_file(&config_path);
-    assert!(
-        result.is_err(),
-        "Should reject config without system_prompt"
-    );
-
-    let error = result.unwrap_err();
-    let error_msg = error.to_string();
-    assert!(
-        error_msg.contains("system_prompt"),
-        "Error should mention missing system_prompt, got: {error_msg}"
-    );
+    // Should succeed — system prompt can come from CLI args
+    let config = load_config_file(&config_path).unwrap();
+    assert!(config.system_prompt.is_none());
+    assert!(config.system_prompt_file.is_none());
 
     // Cleanup
     fs::remove_file(&config_path).ok();
@@ -370,5 +362,79 @@ fn test_config_supports_inline_prompts_without_files() {
     );
 
     // Cleanup
+    fs::remove_file(&config_path).ok();
+}
+
+#[test]
+fn test_partial_config_without_api_url() {
+    // Config file omits api_url — can be provided via CLI --api-url
+    let config_json = r#"{
+        "model": "test-model",
+        "system_prompt": "You are helpful.",
+        "user_prompt": "Hello"
+    }"#;
+
+    let config_file = NamedTempFile::new().unwrap();
+    let config_path = config_file.path().with_extension("json");
+    fs::write(&config_path, config_json).unwrap();
+
+    let config = load_config_file(&config_path).unwrap();
+    assert!(config.api_url.is_none());
+    assert_eq!(config.model, Some("test-model".to_string()));
+
+    fs::remove_file(&config_path).ok();
+}
+
+#[test]
+fn test_partial_config_without_model() {
+    // Config file omits model — can be provided via CLI --model
+    let config_json = r#"{
+        "api_url": "http://localhost:11434/v1/chat/completions",
+        "system_prompt": "You are helpful.",
+        "user_prompt": "Hello"
+    }"#;
+
+    let config_file = NamedTempFile::new().unwrap();
+    let config_path = config_file.path().with_extension("json");
+    fs::write(&config_path, config_json).unwrap();
+
+    let config = load_config_file(&config_path).unwrap();
+    assert_eq!(
+        config.api_url,
+        Some("http://localhost:11434/v1/chat/completions".to_string())
+    );
+    assert!(config.model.is_none());
+
+    fs::remove_file(&config_path).ok();
+}
+
+#[test]
+fn test_partial_config_system_prompt_from_cli() {
+    // Config provides api_url, model but NOT system_prompt.
+    // Simulate CLI providing system_prompt via ConfigBuilder merge.
+    let config_json = r#"{
+        "api_url": "http://localhost:11434/v1/chat/completions",
+        "model": "test-model",
+        "user_prompt": "Hello"
+    }"#;
+
+    let config_file = NamedTempFile::new().unwrap();
+    let config_path = config_file.path().with_extension("json");
+    fs::write(&config_path, config_json).unwrap();
+
+    let file_config = load_config_file(&config_path).unwrap();
+
+    // CLI provides system_prompt
+    let config = ConfigBuilder::new()
+        .system_prompt("CLI system prompt")
+        .merge_file_config(&file_config)
+        .build()
+        .unwrap();
+
+    assert_eq!(config.system_prompt, "CLI system prompt");
+    assert_eq!(config.api_url, "http://localhost:11434/v1/chat/completions");
+    assert_eq!(config.model, "test-model");
+    assert_eq!(config.user_prompt, "Hello");
+
     fs::remove_file(&config_path).ok();
 }

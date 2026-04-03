@@ -88,16 +88,16 @@ temperature = 0.0
 
     // Step 5: Build evaluation config
     let eval_config = EvaluationConfig {
-        api_url: file_config.api_url,
-        model: file_config.model,
+        api_url: file_config.api_url.unwrap(),
+        model: file_config.model.unwrap(),
         system_prompt: file_config.system_prompt.unwrap(),
         user_prompt: file_config.user_prompt.unwrap(),
         provider: None,
-        temperature: file_config.temperature,
+        temperature: file_config.temperature.unwrap_or(0.0),
         max_tokens: file_config.max_tokens,
         seed: file_config.seed,
         api_key: None,
-        timeout_secs: file_config.timeout_secs,
+        timeout_secs: file_config.timeout_secs.unwrap_or(300),
         validate_tokens: file_config.validate_tokens,
         context_limit: file_config.context_limit,
         response_format: None,
@@ -169,16 +169,16 @@ async fn test_end_to_end_config_with_inline_text() {
     let file_config = load_config_file(&config_path).unwrap();
 
     let eval_config = EvaluationConfig {
-        api_url: file_config.api_url,
-        model: file_config.model,
+        api_url: file_config.api_url.unwrap(),
+        model: file_config.model.unwrap(),
         system_prompt: file_config.system_prompt.unwrap(),
         user_prompt: file_config.user_prompt.unwrap(),
         provider: None,
-        temperature: file_config.temperature,
+        temperature: file_config.temperature.unwrap_or(0.0),
         max_tokens: file_config.max_tokens,
         seed: file_config.seed,
         api_key: None,
-        timeout_secs: file_config.timeout_secs,
+        timeout_secs: file_config.timeout_secs.unwrap_or(300),
         validate_tokens: file_config.validate_tokens,
         context_limit: file_config.context_limit,
         response_format: None,
@@ -305,16 +305,16 @@ temperature = 0.0
 
     // Execute
     let eval_config = EvaluationConfig {
-        api_url: file_config.api_url,
-        model: file_config.model,
+        api_url: file_config.api_url.unwrap(),
+        model: file_config.model.unwrap(),
         system_prompt: file_config.system_prompt.unwrap(),
         user_prompt: file_config.user_prompt.unwrap(),
         provider: None,
-        temperature: file_config.temperature,
+        temperature: file_config.temperature.unwrap_or(0.0),
         max_tokens: file_config.max_tokens,
         seed: file_config.seed,
         api_key: None,
-        timeout_secs: file_config.timeout_secs,
+        timeout_secs: file_config.timeout_secs.unwrap_or(300),
         validate_tokens: file_config.validate_tokens,
         context_limit: file_config.context_limit,
         response_format: None,
