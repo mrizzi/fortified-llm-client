@@ -21,7 +21,7 @@ fn test_config_file_temperature_default() {
     std::fs::write(&path, json).unwrap();
 
     let config = load_config_file(&path).unwrap();
-    assert_eq!(config.temperature, 0.0); // Default temperature
+    assert_eq!(config.temperature, None); // Not specified, default applied by ConfigBuilder
 
     std::fs::remove_file(&path).ok();
 }
@@ -42,7 +42,7 @@ fn test_config_file_temperature_explicit() {
     std::fs::write(&path, json).unwrap();
 
     let config = load_config_file(&path).unwrap();
-    assert_eq!(config.temperature, 0.7);
+    assert_eq!(config.temperature, Some(0.7));
 
     std::fs::remove_file(&path).ok();
 }
@@ -103,7 +103,7 @@ fn test_config_file_timeout_default() {
     std::fs::write(&path, json).unwrap();
 
     let config = load_config_file(&path).unwrap();
-    assert_eq!(config.timeout_secs, 300);
+    assert_eq!(config.timeout_secs, None); // Not specified, default applied by ConfigBuilder
 
     std::fs::remove_file(&path).ok();
 }
@@ -170,13 +170,16 @@ fn test_config_file_all_parameters() {
     let config = load_config_file(&path).unwrap();
 
     // Verify all values
-    assert_eq!(config.api_url, "http://localhost:11434/api/generate");
-    assert_eq!(config.model, "llama3:70b");
+    assert_eq!(
+        config.api_url,
+        Some("http://localhost:11434/api/generate".to_string())
+    );
+    assert_eq!(config.model, Some("llama3:70b".to_string()));
     assert_eq!(config.system_prompt, Some("You are an expert.".to_string()));
     assert_eq!(config.user_prompt, Some("Analyze this.".to_string()));
-    assert_eq!(config.temperature, 0.5);
+    assert_eq!(config.temperature, Some(0.5));
     assert_eq!(config.max_tokens, Some(8000));
-    assert_eq!(config.timeout_secs, 600);
+    assert_eq!(config.timeout_secs, Some(600));
     assert!(config.validate_tokens);
     assert_eq!(config.context_limit, Some(128000));
     assert_eq!(config.api_key, Some("test-key".to_string()));
@@ -201,7 +204,7 @@ fn test_toml_config_format() {
     std::fs::write(&path, toml).unwrap();
 
     let config = load_config_file(&path).unwrap();
-    assert_eq!(config.temperature, 0.7);
+    assert_eq!(config.temperature, Some(0.7));
     assert_eq!(config.max_tokens, Some(2000));
     assert_eq!(config.user_prompt, Some("Hello".to_string()));
 

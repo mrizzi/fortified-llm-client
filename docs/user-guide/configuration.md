@@ -43,6 +43,20 @@ CLI arguments always override config file values. This allows you to:
 fortified-llm-client -c config.toml --model gpt-4  # Uses gpt-4, not llama3
 ```
 
+### Partial Config Files
+
+Config files do not need to include all fields. Any required field can be provided via CLI arguments instead. This enables patterns like:
+
+- **Infrastructure config**: Only `api_url`, `model`, `api_key_name` in the file; prompts provided via CLI
+- **Guardrails-only config**: Only `[guardrails]` section; all other fields via CLI
+- **Base + override**: Common settings in the file, per-run values via CLI
+
+```bash
+# Config file only has api_url, model, and guardrails
+# System and user prompts provided via CLI
+fortified-llm-client -c infra.toml --system-text "You are helpful" --user-text "Hello"
+```
+
 ## TOML Format
 
 ### Basic Configuration
@@ -237,11 +251,14 @@ See [Hybrid Guardrails]({{ site.baseurl }}{% link guardrails/hybrid.md %}) for d
 
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
-| `api_url` | String | LLM API endpoint URL | None (required) |
-| `model` | String | Model name/identifier | None (required) |
+| `api_url` | String | LLM API endpoint URL | None (required via CLI or config) |
+| `model` | String | Model name/identifier | None (required via CLI or config) |
 | `provider` | String | Force provider: `"openai"` or `"ollama"` | Auto-detect |
-| `system_prompt` | String | System prompt text | None |
-| `temperature` | Float | Sampling temperature (0.0-2.0) | Provider default |
+| `system_prompt` | String | System prompt text | None (required via CLI or config) |
+| `system_prompt_file` | String | Path to system prompt file | None |
+| `user_prompt` | String | User prompt text | None |
+| `user_prompt_file` | String | Path to user prompt file | None |
+| `temperature` | Float | Sampling temperature (0.0-2.0) | `0.0` |
 | `max_tokens` | Integer | Maximum response tokens | Provider default |
 | `seed` | Integer | Random seed for reproducibility | None |
 | `validate_tokens` | Boolean | Enable token validation | `false` |
@@ -252,6 +269,9 @@ See [Hybrid Guardrails]({{ site.baseurl }}{% link guardrails/hybrid.md %}) for d
 | `api_key` | String | API key (direct value) | None |
 | `api_key_name` | String | Environment variable for API key | None |
 | `timeout_secs` | Integer | Request timeout in seconds | `300` |
+
+All fields in the config file are optional. Required fields (`api_url`, `model`, system prompt, and user prompt) can be provided via CLI arguments instead. CLI arguments always take priority over config file values.
+{: .note }
 
 ### Guardrails Section
 
@@ -392,13 +412,13 @@ fortified-llm-client -c prod.toml --user-text "production query"
 
 ## Validation
 
-Config files are validated on load. Common errors:
+Config files are validated after merging with CLI arguments. Common errors:
 
 ### Missing Required Fields
 
-**Error**: `Failed to merge config: missing field 'api_url'`
+**Error**: `API URL must be provided via --api-url or in config file (--config-file)`
 
-**Fix**: Add required fields (`api_url` and `model`)
+**Fix**: Provide the field via CLI argument or add it to the config file. Required fields: `api_url`, `model`, system prompt (via `--system-text`/`--system-file` or `system_prompt`/`system_prompt_file`), and user prompt (via `--user-text`/`--user-file`/`--pdf-file` or `user_prompt`/`user_prompt_file`/`pdf_file`).
 
 ### Invalid File Extension
 

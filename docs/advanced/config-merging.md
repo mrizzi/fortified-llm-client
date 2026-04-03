@@ -40,20 +40,28 @@ fn merge_config(args: &Args) -> Result<Args, CliError> {
 
 ## ConfigFileRequest
 
-Loads guardrails from TOML/JSON:
+Config files are **partial overlays** — all fields are optional. Required-field validation happens after merging with CLI arguments, in `ConfigBuilder::build()`.
+
+The resolution order for each field:
+1. CLI argument (highest priority)
+2. Config file value
+3. Built-in default (if any)
+
+If a required field is missing from both CLI and config file, `ConfigBuilder::build()` produces a clear error message indicating both sources.
 
 ```rust
 pub struct ConfigFileRequest {
+    pub api_url: Option<String>,     // Required overall, optional in config
+    pub model: Option<String>,       // Required overall, optional in config
+    pub system_prompt: Option<String>,
+    pub temperature: Option<f32>,    // Default: 0.0 (applied by ConfigBuilder)
+    pub timeout_secs: Option<u64>,   // Default: 300 (applied by ConfigBuilder)
     pub guardrails: Option<Guardrails>,
-}
-
-pub struct Guardrails {
-    pub input: Option<GuardrailConfig>,
-    pub output: Option<GuardrailConfig>,
+    // ... other optional fields
 }
 ```
 
-Parsed separately to support nested structures not in `Args`.
+Parsed separately to support nested structures (guardrails) not in `Args`.
 
 ## CLI-Only Fields
 
