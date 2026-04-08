@@ -2,7 +2,7 @@ use crate::{
     error::CliError,
     models::{
         GeminiContent, GeminiGenerationConfig, GeminiPart, GeminiRequest, GeminiResponse,
-        ResponseFormat,
+        GeminiSystemInstruction, ResponseFormat,
     },
     provider::{InvokeParams, LlmProvider},
 };
@@ -29,6 +29,10 @@ impl GeminiProvider {
 #[async_trait]
 impl LlmProvider for GeminiProvider {
     async fn invoke(&self, params: InvokeParams<'_>) -> Result<String, CliError> {
+        // Note: params.model is intentionally unused — Vertex AI embeds the model
+        // in the endpoint URL (e.g., .../models/gemini-pro:generateContent).
+        // The model field is still required for token estimation and metadata.
+
         // Map ResponseFormat to Gemini's generationConfig fields
         let (response_mime_type, response_schema) = match params.response_format {
             Some(ResponseFormat::JsonObject) => (Some("application/json".to_string()), None),
@@ -42,10 +46,9 @@ impl LlmProvider for GeminiProvider {
         let system_instruction = if params.system_prompt.is_empty() {
             None
         } else {
-            Some(GeminiContent {
-                role: None,
+            Some(GeminiSystemInstruction {
                 parts: vec![GeminiPart {
-                    text: params.system_prompt.to_string(),
+                    text: Some(params.system_prompt.to_string()),
                 }],
             })
         };
@@ -55,7 +58,7 @@ impl LlmProvider for GeminiProvider {
             contents: vec![GeminiContent {
                 role: Some("user".to_string()),
                 parts: vec![GeminiPart {
-                    text: params.user_prompt.to_string(),
+                    text: Some(params.user_prompt.to_string()),
                 }],
             }],
             generation_config: Some(GeminiGenerationConfig {
@@ -93,24 +96,63 @@ impl LlmProvider for GeminiProvider {
         let gemini_response: GeminiResponse = serde_json::from_str(&response_text)
             .map_err(|e| CliError::InvalidResponse(format!("Failed to parse response: {e}")))?;
 
-        // Extract text from all parts of the first candidate
+        // Check for prompt-level blocking (safety filters)
+        if let Some(ref feedback) = gemini_response.prompt_feedback {
+            if let Some(ref reason) = feedback.block_reason {
+                return Err(CliError::InvalidResponse(format!(
+                    "Gemini blocked the prompt (reason: {reason}). \
+                     Review your prompt content against Gemini safety policies."
+                )));
+            }
+        }
+
+        // Log non-STOP finish reasons for diagnostics
+        if let Some(candidate) = gemini_response.candidates.first() {
+            if let Some(ref reason) = candidate.finish_reason {
+                match reason.as_str() {
+                    "STOP" | "FINISH_REASON_STOP" => {}
+                    "MAX_TOKENS" | "FINISH_REASON_MAX_TOKENS" => {
+                        log::warn!("Gemini response truncated (finishReason: {reason})");
+                    }
+                    _ => {
+                        log::warn!("Gemini response has finishReason: {reason}");
+                    }
+                }
+            }
+        }
+
+        if gemini_response.candidates.len() > 1 {
+            log::debug!(
+                "Gemini returned {} candidates; using only the first one",
+                gemini_response.candidates.len()
+            );
+        }
+
+        // Extract text from all text parts of the first candidate
         let text = gemini_response
             .candidates
             .first()
-            .map(|candidate| {
-                candidate
-                    .content
+            .and_then(|candidate| candidate.content.as_ref())
+            .map(|content| {
+                content
                     .parts
                     .iter()
-                    .map(|part| part.text.as_str())
+                    .filter_map(|part| part.text.as_deref())
                     .collect::<Vec<_>>()
                     .join("")
             })
             .filter(|s| !s.is_empty())
             .ok_or_else(|| {
-                CliError::InvalidResponse(
-                    "No text content in Gemini response candidates".to_string(),
-                )
+                // Provide diagnostic info from the first candidate's finish reason
+                let finish_info = gemini_response
+                    .candidates
+                    .first()
+                    .and_then(|c| c.finish_reason.as_deref())
+                    .unwrap_or("unknown");
+                CliError::InvalidResponse(format!(
+                    "No text content in Gemini response (finishReason: {finish_info}). \
+                     The response may have been blocked by safety filters."
+                ))
             })?;
 
         Ok(text)
@@ -135,16 +177,15 @@ mod tests {
     #[test]
     fn test_request_system_instruction_separate_from_contents() {
         let request = GeminiRequest {
-            system_instruction: Some(GeminiContent {
-                role: None,
+            system_instruction: Some(GeminiSystemInstruction {
                 parts: vec![GeminiPart {
-                    text: "You are helpful".to_string(),
+                    text: Some("You are helpful".to_string()),
                 }],
             }),
             contents: vec![GeminiContent {
                 role: Some("user".to_string()),
                 parts: vec![GeminiPart {
-                    text: "Hello".to_string(),
+                    text: Some("Hello".to_string()),
                 }],
             }],
             generation_config: None,
@@ -157,8 +198,12 @@ mod tests {
         assert_eq!(contents.len(), 1);
         assert_eq!(contents[0]["role"].as_str().unwrap(), "user");
 
+        // systemInstruction has no role field (dedicated type)
         let sys = &json["systemInstruction"];
-        assert!(sys["role"].is_null());
+        assert!(
+            sys.get("role").is_none(),
+            "systemInstruction should not have a role field"
+        );
         assert_eq!(sys["parts"][0]["text"].as_str().unwrap(), "You are helpful");
     }
 
@@ -177,7 +222,7 @@ mod tests {
             contents: vec![GeminiContent {
                 role: Some("user".to_string()),
                 parts: vec![GeminiPart {
-                    text: "Hello".to_string(),
+                    text: Some("Hello".to_string()),
                 }],
             }],
             generation_config: Some(GeminiGenerationConfig {
@@ -206,7 +251,7 @@ mod tests {
             contents: vec![GeminiContent {
                 role: Some("user".to_string()),
                 parts: vec![GeminiPart {
-                    text: "Hello".to_string(),
+                    text: Some("Hello".to_string()),
                 }],
             }],
             generation_config: None,
@@ -221,5 +266,85 @@ mod tests {
     fn test_gemini_provider_supports_streaming() {
         let provider = GeminiProvider::new("https://example.com".to_string());
         assert!(!provider.supports_streaming());
+    }
+
+    #[test]
+    fn test_response_deserialization_success() {
+        let json = r#"{
+            "candidates": [{
+                "content": {
+                    "role": "model",
+                    "parts": [{"text": "Hello from Gemini"}]
+                },
+                "finishReason": "STOP"
+            }]
+        }"#;
+
+        let response: GeminiResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(response.candidates.len(), 1);
+        let candidate = &response.candidates[0];
+        assert_eq!(candidate.finish_reason.as_deref(), Some("STOP"));
+        let content = candidate.content.as_ref().unwrap();
+        assert_eq!(content.parts[0].text.as_deref(), Some("Hello from Gemini"));
+    }
+
+    #[test]
+    fn test_response_deserialization_safety_blocked_prompt() {
+        let json = r#"{
+            "promptFeedback": {
+                "blockReason": "SAFETY"
+            }
+        }"#;
+
+        let response: GeminiResponse = serde_json::from_str(json).unwrap();
+        assert!(response.candidates.is_empty());
+        assert_eq!(
+            response.prompt_feedback.unwrap().block_reason.as_deref(),
+            Some("SAFETY")
+        );
+    }
+
+    #[test]
+    fn test_response_deserialization_safety_blocked_candidate() {
+        let json = r#"{
+            "candidates": [{
+                "finishReason": "SAFETY"
+            }]
+        }"#;
+
+        let response: GeminiResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(response.candidates.len(), 1);
+        assert!(response.candidates[0].content.is_none());
+        assert_eq!(
+            response.candidates[0].finish_reason.as_deref(),
+            Some("SAFETY")
+        );
+    }
+
+    #[test]
+    fn test_response_deserialization_non_text_parts_ignored() {
+        let json = r#"{
+            "candidates": [{
+                "content": {
+                    "role": "model",
+                    "parts": [
+                        {"text": "Hello"},
+                        {"functionCall": {"name": "search", "args": {}}},
+                        {"text": " World"}
+                    ]
+                },
+                "finishReason": "STOP"
+            }]
+        }"#;
+
+        let response: GeminiResponse = serde_json::from_str(json).unwrap();
+        let content = response.candidates[0].content.as_ref().unwrap();
+        // Non-text parts deserialize with text: None, text parts have Some
+        let texts: Vec<&str> = content
+            .parts
+            .iter()
+            .filter_map(|p| p.text.as_deref())
+            .collect();
+        assert_eq!(texts, vec!["Hello", " World"]);
     }
 }

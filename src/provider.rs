@@ -51,7 +51,7 @@ pub struct InvokeParams<'a> {
     /// Request timeout in seconds
     pub timeout_secs: u64,
 
-    /// Optional response format constraint (OpenAI-compatible only)
+    /// Optional response format constraint (support varies by provider)
     pub response_format: Option<&'a ResponseFormat>,
 }
 
@@ -65,6 +65,8 @@ pub struct InvokeParams<'a> {
 ///
 /// - `OpenAIProvider` - For OpenAI-compatible APIs
 /// - `OllamaProvider` - For Ollama /api/generate format
+/// - `AnthropicProvider` - For Anthropic /v1/messages format (direct + Vertex AI)
+/// - `GeminiProvider` - For Google Gemini via Vertex AI
 ///
 /// # Example
 ///
@@ -80,6 +82,7 @@ pub struct InvokeParams<'a> {
 ///     user_prompt: "Say hello",
 ///     temperature: 0.7,
 ///     max_tokens: Some(100),
+///     seed: Some(42),
 ///     api_key: Some("sk-..."),
 ///     timeout_secs: 30,
 ///     response_format: None,
@@ -121,6 +124,9 @@ pub trait LlmProvider: Send + Sync {
 ///
 /// - `Ollama` - For Ollama /api/generate format (local servers)
 /// - `OpenAI` - For OpenAI-compatible /v1/chat/completions format
+/// - `Anthropic` - For Anthropic /v1/messages format (auto-detects Vertex from URL)
+/// - `AnthropicVertex` - Forces Anthropic Vertex AI auth and request format
+/// - `Gemini` - For Google Gemini via Vertex AI
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProviderType {
     /// Ollama /api/generate format (local servers)

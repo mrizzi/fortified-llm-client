@@ -90,38 +90,32 @@ let config = EvaluationConfig {
 
 ## LlmProvider Trait
 
-**Location**: `src/providers/provider.rs`
+**Location**: `src/provider.rs`
 
 Unified interface for all providers:
 
 ```rust
 #[async_trait]
 pub trait LlmProvider: Send + Sync {
-    async fn invoke(&self, request: LlmRequest) -> Result<LlmResponse, FortifiedError>;
+    async fn invoke(&self, params: InvokeParams<'_>) -> Result<String, CliError>;
+    fn name(&self) -> &str;
+    fn supports_streaming(&self) -> bool { false }
 }
 ```
 
-### LlmRequest
+### InvokeParams
 
 ```rust
-pub struct LlmRequest {
-    pub model: String,
-    pub messages: Vec<Message>,
-    pub temperature: Option<f32>,
+pub struct InvokeParams<'a> {
+    pub model: &'a str,
+    pub system_prompt: &'a str,
+    pub user_prompt: &'a str,
+    pub temperature: f32,
     pub max_tokens: Option<u32>,
     pub seed: Option<u64>,
-    pub response_format: Option<ResponseFormat>,
-    // ...
-}
-```
-
-### LlmResponse
-
-```rust
-pub struct LlmResponse {
-    pub content: String,
-    pub model: String,
-    pub finish_reason: Option<String>,
+    pub api_key: Option<&'a str>,
+    pub timeout_secs: u64,
+    pub response_format: Option<&'a ResponseFormat>,
 }
 ```
 
@@ -133,16 +127,15 @@ pub struct LlmResponse {
 
 ```rust
 pub struct OpenAIProvider {
+    client: Client,
     api_url: String,
-    api_key: Option<String>,
-    timeout: Duration,
 }
 
 #[async_trait]
 impl LlmProvider for OpenAIProvider {
-    async fn invoke(&self, request: LlmRequest) -> Result<LlmResponse, FortifiedError> {
-        // Build request body
-        // Make HTTP POST to api_url
+    async fn invoke(&self, params: InvokeParams<'_>) -> Result<String, CliError> {
+        // Build OpenAI request body from params
+        // POST to api_url with Bearer token auth
         // Parse JSON response
         // Extract content from choices[0].message.content
     }
