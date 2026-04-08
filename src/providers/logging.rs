@@ -8,18 +8,29 @@ use serde::Serialize;
 pub async fn handle_error_response(response: reqwest::Response) -> CliError {
     let status = response.status();
 
-    if status == 401 {
-        return CliError::AuthenticationFailed("Invalid or missing API key".to_string());
-    }
+    let error_body = match response.text().await {
+        Ok(body) => body,
+        Err(e) => {
+            log::warn!("Failed to read error response body: {e}");
+            String::new()
+        }
+    };
 
-    let error_body = response.text().await.unwrap_or_default();
+    if status == 401 {
+        let detail = if error_body.is_empty() {
+            "Invalid or missing API key".to_string()
+        } else {
+            format!("Authentication failed: {error_body}")
+        };
+        return CliError::AuthenticationFailed(detail);
+    }
 
     let error_msg = format!(
         "HTTP {} error: {}\nResponse from API: {}",
         status.as_u16(),
         status.canonical_reason().unwrap_or("Unknown error"),
         if error_body.is_empty() {
-            "No details provided"
+            "(error response body could not be read)"
         } else {
             &error_body
         }

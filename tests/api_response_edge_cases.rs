@@ -409,3 +409,161 @@ async fn test_ollama_missing_response_field() {
 
     mock.assert_async().await;
 }
+
+// =============================================================================
+// ANTHROPIC PROVIDER EDGE CASES
+// =============================================================================
+
+async fn create_anthropic_test_config(api_url: String) -> EvaluationConfig {
+    EvaluationConfig {
+        api_url,
+        model: "claude-sonnet-4-6".to_string(),
+        system_prompt: "Test system".to_string(),
+        user_prompt: "Test user".to_string(),
+        provider: Some(Provider::Anthropic),
+        temperature: 0.0,
+        max_tokens: Some(100),
+        seed: None,
+        api_key: Some("test-key".to_string()),
+        timeout_secs: 5,
+        validate_tokens: false,
+        context_limit: None,
+        response_format: None,
+        pdf_input: None,
+        input_guardrails: None,
+        output_guardrails: None,
+        system_prompt_file: None,
+        user_prompt_file: None,
+    }
+}
+
+#[tokio::test]
+async fn test_anthropic_successful_response() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock("POST", "/v1/messages")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"content": [{"type": "text", "text": "Hello from Claude"}], "stop_reason": "end_turn"}"#)
+        .create_async()
+        .await;
+
+    let config = create_anthropic_test_config(server.url() + "/v1/messages").await;
+    let result = evaluate(config).await;
+
+    assert!(
+        result.is_ok(),
+        "Should succeed with valid Anthropic response"
+    );
+    let output = result.unwrap();
+    assert_eq!(
+        output.response,
+        Some(serde_json::Value::String("Hello from Claude".to_string()))
+    );
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_anthropic_401_includes_error_body() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock("POST", "/v1/messages")
+        .with_status(401)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"type": "error", "error": {"type": "authentication_error", "message": "Invalid API key provided"}}"#)
+        .create_async()
+        .await;
+
+    let config = create_anthropic_test_config(server.url() + "/v1/messages").await;
+    let result = evaluate(config).await;
+
+    assert!(result.is_err());
+    if let Err(err) = result {
+        let msg = err.to_string();
+        assert!(
+            msg.contains("authentication_error") || msg.contains("Invalid API key"),
+            "401 error should include API error body, got: {msg}"
+        );
+    }
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_anthropic_no_text_block() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock("POST", "/v1/messages")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"content": [{"type": "tool_use", "id": "t1", "name": "search", "input": {}}], "stop_reason": "tool_use"}"#)
+        .create_async()
+        .await;
+
+    let config = create_anthropic_test_config(server.url() + "/v1/messages").await;
+    let result = evaluate(config).await;
+
+    assert!(result.is_err());
+    if let Err(err) = result {
+        let msg = err.to_string();
+        assert!(
+            msg.contains("No text content"),
+            "Should report no text content, got: {msg}"
+        );
+    }
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_anthropic_malformed_json() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock("POST", "/v1/messages")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body("{not valid json")
+        .create_async()
+        .await;
+
+    let config = create_anthropic_test_config(server.url() + "/v1/messages").await;
+    let result = evaluate(config).await;
+
+    assert!(result.is_err());
+    if let Err(err) = result {
+        let msg = err.to_string();
+        assert!(
+            msg.to_lowercase().contains("parse"),
+            "Should mention parse error, got: {msg}"
+        );
+    }
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_anthropic_500_error() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock("POST", "/v1/messages")
+        .with_status(500)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"type": "error", "error": {"type": "api_error", "message": "Internal server error"}}"#)
+        .create_async()
+        .await;
+
+    let config = create_anthropic_test_config(server.url() + "/v1/messages").await;
+    let result = evaluate(config).await;
+
+    assert!(result.is_err());
+    if let Err(err) = result {
+        let msg = err.to_string();
+        assert!(
+            msg.contains("500") && msg.contains("Internal server error"),
+            "Should include status and API error body, got: {msg}"
+        );
+    }
+
+    mock.assert_async().await;
+}

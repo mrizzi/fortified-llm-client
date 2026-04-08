@@ -152,10 +152,11 @@ pub struct AnthropicResponse {
     pub content: Vec<AnthropicContentBlock>,
 }
 
-#[derive(Deserialize)]
-pub struct AnthropicContentBlock {
-    #[serde(rename = "type")]
-    pub block_type: String,
-    #[serde(default)]
-    pub text: Option<String>,
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type")]
+pub enum AnthropicContentBlock {
+    #[serde(rename = "text")]
+    Text { text: String },
+    #[serde(other)]
+    Other,
 }

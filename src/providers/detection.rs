@@ -212,4 +212,13 @@ mod tests {
         );
         assert_eq!(provider.name(), "Anthropic");
     }
+
+    #[test]
+    fn test_create_provider_explicit_anthropic_vertex() {
+        let provider = create_provider(
+            "http://my-proxy.example.com/claude".to_string(),
+            Some(ProviderType::AnthropicVertex),
+        );
+        assert_eq!(provider.name(), "Anthropic");
+    }
 }

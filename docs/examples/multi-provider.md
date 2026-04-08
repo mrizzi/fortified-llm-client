@@ -57,7 +57,6 @@ fortified-llm-client \
 fortified-llm-client \
   --api-url "https://global-aiplatform.googleapis.com/v1/projects/MY_PROJECT/locations/global/publishers/anthropic/models/claude-sonnet-4-6:streamRawPredict" \
   --model claude-sonnet-4-6 \
-  --provider anthropic \
   --api-key "$(gcloud auth print-access-token)" \
   --system-text "You are a helpful assistant." \
   --user-text "Hello" \
