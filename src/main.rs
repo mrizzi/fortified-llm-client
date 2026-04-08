@@ -255,6 +255,9 @@ enum ProviderArg {
     #[value(name = "openai")]
     #[serde(rename = "openai")]
     OpenAI,
+    #[value(name = "anthropic")]
+    #[serde(rename = "anthropic")]
+    Anthropic,
 }
 
 impl From<ProviderArg> for Provider {
@@ -262,6 +265,7 @@ impl From<ProviderArg> for Provider {
         match arg {
             ProviderArg::Ollama => Provider::Ollama,
             ProviderArg::OpenAI => Provider::OpenAI,
+            ProviderArg::Anthropic => Provider::Anthropic,
         }
     }
 }
