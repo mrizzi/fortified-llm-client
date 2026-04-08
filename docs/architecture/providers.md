@@ -62,11 +62,12 @@ Force provider via CLI or config:
 --provider openai
 --provider ollama
 --provider anthropic
+--provider anthropic-vertex
 ```
 
 **Config**:
 ```toml
-provider = "openai"     # or "ollama" or "anthropic"
+provider = "openai"     # or "ollama", "anthropic", "anthropic-vertex"
 ```
 
 **Library**:
@@ -74,7 +75,7 @@ provider = "openai"     # or "ollama" or "anthropic"
 use fortified_llm_client::Provider;
 
 let config = EvaluationConfig {
-    provider: Some(Provider::OpenAI),    // or Provider::Ollama or Provider::Anthropic
+    provider: Some(Provider::OpenAI),    // or Ollama, Anthropic, AnthropicVertex
     // ...
 };
 ```
@@ -225,7 +226,7 @@ pub struct AnthropicProvider {
 }
 ```
 
-Mode is auto-detected: URLs containing `aiplatform.googleapis.com` use Vertex mode, everything else uses Direct mode.
+Mode is auto-detected: URLs containing `aiplatform.googleapis.com` use Vertex mode, everything else uses Direct mode. Use `--provider anthropic-vertex` to force Vertex mode when the URL doesn't match (e.g., behind a proxy).
 
 ### Differences from OpenAI
 

@@ -98,6 +98,14 @@ temperature = 0.7
 max_tokens = 1000
 ```
 
+`vertex-proxy.toml` (when Vertex AI is behind a proxy/gateway):
+```toml
+api_url = "https://my-proxy.example.com/claude"
+provider = "anthropic-vertex"
+temperature = 0.7
+max_tokens = 1000
+```
+
 Usage:
 ```bash
 # Use Ollama
