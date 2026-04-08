@@ -59,20 +59,34 @@ impl LlmProvider for AnthropicProvider {
     async fn invoke(&self, params: InvokeParams<'_>) -> Result<String, CliError> {
         let max_tokens = params.max_tokens.unwrap_or(DEFAULT_MAX_TOKENS);
 
-        let output_config = params.response_format.and_then(|fmt| match fmt {
-            ResponseFormat::JsonSchema { json_schema } => Some(AnthropicOutputConfig {
-                format: AnthropicOutputFormat::JsonSchema {
-                    schema: json_schema.schema.clone(),
-                },
-            }),
-            ResponseFormat::JsonObject => {
+        // Structured output via output_config is only supported on the direct Anthropic API,
+        // not on Vertex AI (see https://platform.claude.com/docs/en/build-with-claude/overview)
+        let output_config = if self.mode == AnthropicMode::Vertex {
+            if params
+                .response_format
+                .is_some_and(|f| !matches!(f, ResponseFormat::Text))
+            {
                 log::warn!(
-                    "Anthropic provider does not support 'json-object' response format; ignoring"
+                    "Vertex AI does not support structured output (output_config); ignoring response_format"
                 );
-                None
             }
-            ResponseFormat::Text => None,
-        });
+            None
+        } else {
+            params.response_format.and_then(|fmt| match fmt {
+                ResponseFormat::JsonSchema { json_schema } => Some(AnthropicOutputConfig {
+                    format: AnthropicOutputFormat::JsonSchema {
+                        schema: json_schema.schema.clone(),
+                    },
+                }),
+                ResponseFormat::JsonObject => {
+                    log::warn!(
+                        "Anthropic provider does not support 'json-object' response format; ignoring"
+                    );
+                    None
+                }
+                ResponseFormat::Text => None,
+            })
+        };
 
         let request = AnthropicRequest {
             model: match self.mode {
