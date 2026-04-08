@@ -68,17 +68,18 @@ At minimum, you must provide:
 
 **Description**: Force specific provider format (overrides auto-detection)
 
-**Values**: `openai`, `ollama`
+**Values**: `openai`, `ollama`, `anthropic`
 
 **Default**: Auto-detected from API URL
 
 **Example**:
 ```bash
---provider openai  # Force OpenAI format even for Ollama-compatible URLs
+--provider openai      # Force OpenAI format even for Ollama-compatible URLs
+--provider anthropic   # Force Anthropic format for Claude models
 ```
 
 {: .note }
-> Auto-detection analyzes the API URL to infer the provider. Explicitly set this only if auto-detection fails or you need to override it.
+> Auto-detection analyzes the API URL to infer the provider. Explicitly set this only if auto-detection fails or you need to override it. URLs containing `/v1/messages`, `anthropic.com`, or `aiplatform.googleapis.com` are auto-detected as Anthropic.
 
 ## Prompts
 

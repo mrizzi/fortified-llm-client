@@ -14,6 +14,7 @@ Multi-provider support with automatic detection and unified interface.
 1. **OpenAI** - Official OpenAI API
 2. **Ollama** - Local models with OpenAI-compatible API
 3. **OpenAI-compatible** - Any service using `/v1/chat/completions` endpoint
+4. **Anthropic** - Claude models via direct API or Google Vertex AI
 
 ## Provider Detection
 
@@ -24,21 +25,32 @@ Multi-provider support with automatic detection and unified interface.
 Analyzes API URL to infer provider:
 
 ```rust
-pub fn detect_provider(api_url: &str) -> Provider {
-    if api_url.contains("openai.com") || api_url.contains("azure.com") {
-        Provider::OpenAI
-    } else if api_url.contains("ollama") || api_url.contains("localhost:11434") {
-        Provider::Ollama
-    } else {
-        Provider::OpenAI  // Default fallback (most compatible)
+pub fn detect_provider_type(url: &str) -> ProviderType {
+    // Path-based detection (highest priority)
+    if url.contains("/v1/messages") { return ProviderType::Anthropic; }
+    if url.contains("/api/generate") { return ProviderType::Ollama; }
+    if url.contains("/v1/chat/completions") { return ProviderType::OpenAI; }
+
+    // Host-based detection
+    if url.contains("anthropic.com") || url.contains("aiplatform.googleapis.com") {
+        return ProviderType::Anthropic;
     }
+
+    // Port-based fallback
+    if url.contains("localhost:11434") || url.contains("127.0.0.1:11434") {
+        return ProviderType::Ollama;
+    }
+
+    ProviderType::OpenAI  // Default fallback
 }
 ```
 
 **Patterns matched**:
-- `openai.com` → OpenAI
-- `azure.com` → OpenAI (Azure uses same format)
-- `ollama` or `localhost:11434` → Ollama
+- `/v1/messages` → Anthropic (path takes highest priority)
+- `/api/generate` → Ollama
+- `/v1/chat/completions` → OpenAI
+- `anthropic.com` or `aiplatform.googleapis.com` → Anthropic
+- `localhost:11434` → Ollama
 - Everything else → OpenAI (fallback)
 
 ### Explicit Override
@@ -49,11 +61,12 @@ Force provider via CLI or config:
 ```bash
 --provider openai
 --provider ollama
+--provider anthropic
 ```
 
 **Config**:
 ```toml
-provider = "openai"
+provider = "openai"     # or "ollama" or "anthropic"
 ```
 
 **Library**:
@@ -61,7 +74,7 @@ provider = "openai"
 use fortified_llm_client::Provider;
 
 let config = EvaluationConfig {
-    provider: Some(Provider::OpenAI),
+    provider: Some(Provider::OpenAI),    // or Provider::Ollama or Provider::Anthropic
     // ...
 };
 ```
@@ -191,17 +204,90 @@ impl LlmProvider for OllamaProvider {
 2. **Same request/response format** - OpenAI-compatible
 3. **Local models** - Models must be pulled first (`ollama pull llama3`)
 
+## Anthropic Provider
+
+**Location**: `src/providers/anthropic.rs`
+
+### Implementation
+
+Supports both direct Anthropic API and Google Vertex AI through a single provider with an internal mode:
+
+```rust
+pub enum AnthropicMode {
+    Direct,  // api.anthropic.com — uses x-api-key header
+    Vertex,  // Vertex AI — uses Authorization: Bearer, anthropic_version in body
+}
+
+pub struct AnthropicProvider {
+    client: Client,
+    api_url: String,
+    mode: AnthropicMode,  // Auto-detected from URL
+}
+```
+
+Mode is auto-detected: URLs containing `aiplatform.googleapis.com` use Vertex mode, everything else uses Direct mode.
+
+### Differences from OpenAI
+
+1. **Different auth header** - Direct: `x-api-key`, Vertex: `Authorization: Bearer`
+2. **System prompt is a top-level field** - Not part of the messages array
+3. **`max_tokens` is required** - Defaults to 4096 when not specified
+4. **Different response format** - Content blocks array instead of choices
+5. **Vertex AI specifics** - Model omitted from body (in URL), `anthropic_version` in body
+
+### Request Format (Direct API)
+
+```json
+{
+  "model": "claude-sonnet-4-6",
+  "max_tokens": 4096,
+  "system": "You are a helpful assistant.",
+  "messages": [
+    {"role": "user", "content": "Explain Rust ownership"}
+  ],
+  "temperature": 0.7
+}
+```
+
+### Request Format (Vertex AI)
+
+```json
+{
+  "max_tokens": 4096,
+  "anthropic_version": "vertex-2023-10-16",
+  "system": "You are a helpful assistant.",
+  "messages": [
+    {"role": "user", "content": "Explain Rust ownership"}
+  ],
+  "temperature": 0.7
+}
+```
+
+### Response Format
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Rust ownership ensures..."
+    }
+  ],
+  "stop_reason": "end_turn"
+}
+```
+
 ## Error Handling
 
 ### Common Errors
 
 | Error | Provider | Cause |
 |-------|----------|-------|
-| 401 Unauthorized | OpenAI | Invalid/missing API key |
+| 401 Unauthorized | OpenAI, Anthropic | Invalid/missing API key |
 | 404 Not Found | Ollama | Model not pulled |
-| 429 Rate Limit | OpenAI | Too many requests |
+| 429 Rate Limit | OpenAI, Anthropic | Too many requests |
 | Connection Refused | Ollama | Ollama not running |
-| Timeout | Both | Request took too long |
+| Timeout | All | Request took too long |
 
 ### Error Mapping
 
@@ -248,9 +334,10 @@ impl LlmProvider for MyProvider {
 In `src/lib.rs`:
 
 ```rust
-pub enum Provider {
+pub enum ProviderType {
     OpenAI,
     Ollama,
+    Anthropic,
     MyProvider,  // Add new variant
 }
 ```
