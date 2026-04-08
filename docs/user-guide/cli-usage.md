@@ -68,7 +68,7 @@ At minimum, you must provide:
 
 **Description**: Force specific provider format (overrides auto-detection)
 
-**Values**: `openai`, `ollama`, `anthropic`, `anthropic-vertex`
+**Values**: `openai`, `ollama`, `anthropic`, `anthropic-vertex`, `gemini`
 
 **Default**: Auto-detected from API URL
 
@@ -77,10 +77,11 @@ At minimum, you must provide:
 --provider openai            # Force OpenAI format even for Ollama-compatible URLs
 --provider anthropic         # Force Anthropic direct API format (x-api-key auth)
 --provider anthropic-vertex  # Force Anthropic Vertex AI format (Bearer token auth)
+--provider gemini            # Force Gemini Vertex AI format (Bearer token auth)
 ```
 
 {: .note }
-> Auto-detection analyzes the API URL to infer the provider. Explicitly set this only if auto-detection fails or you need to override it. URLs containing `/v1/messages`, `anthropic.com`, or `aiplatform.googleapis.com` are auto-detected as Anthropic. Use `anthropic-vertex` when accessing Vertex AI through a proxy or gateway whose URL doesn't match these patterns.
+> Auto-detection analyzes the API URL to infer the provider. Explicitly set this only if auto-detection fails or you need to override it. URLs containing `/v1/messages` or `anthropic.com` are auto-detected as Anthropic. Vertex AI URLs (`aiplatform.googleapis.com`) are distinguished by publisher path: `/publishers/google/` → Gemini, other → Anthropic. Use `gemini` when accessing Gemini through a proxy whose URL doesn't match these patterns.
 
 ## Prompts
 

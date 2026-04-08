@@ -15,6 +15,7 @@ Multi-provider support with automatic detection and unified interface.
 2. **Ollama** - Local models with OpenAI-compatible API
 3. **OpenAI-compatible** - Any service using `/v1/chat/completions` endpoint
 4. **Anthropic** - Claude models via direct API or Google Vertex AI
+5. **Gemini** - Google Gemini models via Vertex AI
 
 ## Provider Detection
 
@@ -31,10 +32,14 @@ pub fn detect_provider_type(url: &str) -> ProviderType {
     if url.contains("/api/generate") { return ProviderType::Ollama; }
     if url.contains("/v1/chat/completions") { return ProviderType::OpenAI; }
 
-    // Host-based detection
-    if url.contains("anthropic.com") || url.contains("aiplatform.googleapis.com") {
-        return ProviderType::Anthropic;
+    // Publisher-based detection for Vertex AI (multi-provider on same host)
+    if url.contains("aiplatform.googleapis.com") {
+        if url.contains("/publishers/google/") { return ProviderType::Gemini; }
+        return ProviderType::Anthropic;  // Fallback for backward compat
     }
+
+    // Host-based detection
+    if url.contains("anthropic.com") { return ProviderType::Anthropic; }
 
     // Port-based fallback
     if url.contains("localhost:11434") || url.contains("127.0.0.1:11434") {
@@ -49,7 +54,9 @@ pub fn detect_provider_type(url: &str) -> ProviderType {
 - `/v1/messages` → Anthropic (path takes highest priority)
 - `/api/generate` → Ollama
 - `/v1/chat/completions` → OpenAI
-- `anthropic.com` or `aiplatform.googleapis.com` → Anthropic
+- `aiplatform.googleapis.com` + `/publishers/google/` → Gemini
+- `aiplatform.googleapis.com` + other → Anthropic (backward compat)
+- `anthropic.com` → Anthropic
 - `localhost:11434` → Ollama
 - Everything else → OpenAI (fallback)
 
@@ -63,11 +70,12 @@ Force provider via CLI or config:
 --provider ollama
 --provider anthropic
 --provider anthropic-vertex
+--provider gemini
 ```
 
 **Config**:
 ```toml
-provider = "openai"     # or "ollama", "anthropic", "anthropic-vertex"
+provider = "openai"     # or "ollama", "anthropic", "anthropic-vertex", "gemini"
 ```
 
 **Library**:
@@ -75,7 +83,7 @@ provider = "openai"     # or "ollama", "anthropic", "anthropic-vertex"
 use fortified_llm_client::Provider;
 
 let config = EvaluationConfig {
-    provider: Some(Provider::OpenAI),    // or Ollama, Anthropic, AnthropicVertex
+    provider: Some(Provider::OpenAI),    // or Ollama, Anthropic, AnthropicVertex, Gemini
     // ...
 };
 ```
@@ -310,6 +318,90 @@ When `response_format = "json-schema"` is configured, the Anthropic provider map
     }
   ],
   "stop_reason": "end_turn"
+}
+```
+
+## Gemini Provider
+
+**Location**: `src/providers/gemini.rs`
+
+### Implementation
+
+Google Gemini via Vertex AI, using OAuth2 Bearer token authentication:
+
+```rust
+pub struct GeminiProvider {
+    client: Client,
+    api_url: String,
+}
+```
+
+Authentication uses `Authorization: Bearer` with an OAuth2 token (obtained via `gcloud auth print-access-token`).
+
+### Differences from OpenAI
+
+1. **OAuth2 auth** - `Authorization: Bearer {token}` (not API key)
+2. **System prompt is `systemInstruction`** - Top-level field with `parts`, not in messages
+3. **`contents` instead of `messages`** - Each with `role` and `parts` array
+4. **`generationConfig` for parameters** - `maxOutputTokens`, `responseMimeType`, `responseSchema`
+5. **Model in URL** - Vertex AI embeds model in endpoint path
+
+### Request Format
+
+```json
+{
+  "systemInstruction": {
+    "parts": [{"text": "You are a helpful assistant."}]
+  },
+  "contents": [
+    {"role": "user", "parts": [{"text": "Explain Rust ownership"}]}
+  ],
+  "generationConfig": {
+    "temperature": 0.7,
+    "maxOutputTokens": 1000,
+    "seed": 42
+  }
+}
+```
+
+### Structured Output (JSON Schema)
+
+When `response_format = "json-schema"` is configured, the Gemini provider maps it to `responseMimeType` + `responseSchema`:
+
+```json
+{
+  "contents": [
+    {"role": "user", "parts": [{"text": "Extract name and age"}]}
+  ],
+  "generationConfig": {
+    "temperature": 0.7,
+    "maxOutputTokens": 1000,
+    "responseMimeType": "application/json",
+    "responseSchema": {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string"},
+        "age": {"type": "number"}
+      },
+      "required": ["name", "age"]
+    }
+  }
+}
+```
+
+`json-object` mode is also supported (sets `responseMimeType: "application/json"` without a schema).
+
+### Response Format
+
+```json
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [{"text": "Rust ownership ensures..."}]
+      }
+    }
+  ]
 }
 ```
 

@@ -131,4 +131,6 @@ pub enum ProviderType {
     Anthropic,
     /// Anthropic via Google Vertex AI (forces Vertex auth and request format)
     AnthropicVertex,
+    /// Google Gemini via Vertex AI (publishers/google/ path)
+    Gemini,
 }

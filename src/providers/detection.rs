@@ -1,6 +1,9 @@
 use crate::provider::{LlmProvider, ProviderType};
 
-use super::{anthropic::AnthropicProvider, ollama::OllamaProvider, openai::OpenAIProvider};
+use super::{
+    anthropic::AnthropicProvider, gemini::GeminiProvider, ollama::OllamaProvider,
+    openai::OpenAIProvider,
+};
 
 /// Detect API format from URL
 ///
@@ -11,14 +14,17 @@ use super::{anthropic::AnthropicProvider, ollama::OllamaProvider, openai::OpenAI
 ///    - `/api/generate` → Ollama
 ///    - `/v1/chat/completions` → OpenAI
 ///
-/// 2. **Host-based detection**:
-///    - `anthropic.com` → Anthropic
-///    - `aiplatform.googleapis.com` → Anthropic (Vertex AI)
+/// 2. **Publisher-based detection** (Vertex AI):
+///    - `aiplatform.googleapis.com` + `/publishers/google/` → Gemini
+///    - `aiplatform.googleapis.com` + other → Anthropic (backward compat)
 ///
-/// 3. **Port-based detection** (fallback):
+/// 3. **Host-based detection**:
+///    - `anthropic.com` → Anthropic
+///
+/// 4. **Port-based detection** (fallback):
 ///    - Port 11434 → Ollama (common local server port)
 ///
-/// 4. **Default**: OpenAI (industry standard for cloud APIs)
+/// 5. **Default**: OpenAI (industry standard for cloud APIs)
 ///
 /// # Examples
 ///
@@ -66,8 +72,17 @@ pub fn detect_provider_type(url: &str) -> ProviderType {
         return ProviderType::OpenAI;
     }
 
+    // Publisher-based detection for Vertex AI (multi-provider on same host)
+    if url.contains("aiplatform.googleapis.com") {
+        if url.contains("/publishers/google/") {
+            return ProviderType::Gemini;
+        }
+        // Fallback to Anthropic for backward compatibility
+        return ProviderType::Anthropic;
+    }
+
     // Host-based detection
-    if url.contains("anthropic.com") || url.contains("aiplatform.googleapis.com") {
+    if url.contains("anthropic.com") {
         return ProviderType::Anthropic;
     }
 
@@ -114,6 +129,7 @@ pub fn create_provider(
         ProviderType::OpenAI => Box::new(OpenAIProvider::new(api_url)),
         ProviderType::Anthropic => Box::new(AnthropicProvider::new(api_url)),
         ProviderType::AnthropicVertex => Box::new(AnthropicProvider::new_vertex(api_url)),
+        ProviderType::Gemini => Box::new(GeminiProvider::new(api_url)),
     }
 }
 
@@ -220,5 +236,51 @@ mod tests {
             Some(ProviderType::AnthropicVertex),
         );
         assert_eq!(provider.name(), "Anthropic");
+    }
+
+    #[test]
+    fn test_detect_gemini_by_publisher_path() {
+        let url = "https://us-central1-aiplatform.googleapis.com/v1/projects/my-project/locations/us-central1/publishers/google/models/gemini-pro:generateContent";
+        assert!(matches!(detect_provider_type(url), ProviderType::Gemini));
+    }
+
+    #[test]
+    fn test_detect_anthropic_vs_gemini_on_vertex() {
+        let anthropic_url = "https://global-aiplatform.googleapis.com/v1/projects/my-project/locations/global/publishers/anthropic/models/claude-sonnet-4-6:streamRawPredict";
+        assert!(matches!(
+            detect_provider_type(anthropic_url),
+            ProviderType::Anthropic
+        ));
+
+        let gemini_url = "https://us-central1-aiplatform.googleapis.com/v1/projects/my-project/locations/us-central1/publishers/google/models/gemini-2.0-flash:generateContent";
+        assert!(matches!(
+            detect_provider_type(gemini_url),
+            ProviderType::Gemini
+        ));
+    }
+
+    #[test]
+    fn test_detect_vertex_fallback_to_anthropic() {
+        // Unrecognized publisher falls back to Anthropic for backward compat
+        let url = "https://us-central1-aiplatform.googleapis.com/v1/projects/my-project/locations/us-central1/models/some-model";
+        assert!(matches!(detect_provider_type(url), ProviderType::Anthropic));
+    }
+
+    #[test]
+    fn test_create_provider_auto_detect_gemini() {
+        let provider = create_provider(
+            "https://us-central1-aiplatform.googleapis.com/v1/projects/my-project/locations/us-central1/publishers/google/models/gemini-pro:generateContent".to_string(),
+            None,
+        );
+        assert_eq!(provider.name(), "Gemini");
+    }
+
+    #[test]
+    fn test_create_provider_explicit_gemini() {
+        let provider = create_provider(
+            "http://localhost:8080/custom".to_string(),
+            Some(ProviderType::Gemini),
+        );
+        assert_eq!(provider.name(), "Gemini");
     }
 }
