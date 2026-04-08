@@ -294,7 +294,7 @@ When `response_format = "json-schema"` is configured, the Anthropic provider map
 ```
 
 {: .warning }
-> **Vertex AI limitation**: Structured output (`output_config`) is not supported on Vertex AI. Only the direct Anthropic API supports it. When using `anthropic-vertex`, the `response_format` setting is ignored with a warning.
+> **Vertex AI limitation**: Structured output (`output_config`) is not supported on Vertex AI. Only the direct Anthropic API supports it. When using `anthropic-vertex`, the `response_format` setting is ignored with a warning. See [Anthropic feature availability](https://platform.claude.com/docs/en/build-with-claude/overview) for the full platform support matrix.
 
 {: .note }
 > Anthropic does not support `json-object` mode (OpenAI-only). Only `json-schema` is supported for structured output on the direct API. Using `json-object` logs a warning and is ignored.
