@@ -68,7 +68,8 @@ impl ConfigBuilder {
                     "openai" => self.provider = Some(Provider::OpenAI),
                     "anthropic" => self.provider = Some(Provider::Anthropic),
                     "anthropic-vertex" => self.provider = Some(Provider::AnthropicVertex),
-                    _ => log::warn!("Unknown provider '{provider_str}' in config file. Valid values: 'ollama', 'openai', 'anthropic', 'anthropic-vertex'"),
+                    "gemini" => self.provider = Some(Provider::Gemini),
+                    _ => log::warn!("Unknown provider '{provider_str}' in config file. Valid values: 'ollama', 'openai', 'anthropic', 'anthropic-vertex', 'gemini'"),
                 }
             }
         }

@@ -160,3 +160,49 @@ pub enum AnthropicContentBlock {
     #[serde(other)]
     Other,
 }
+
+// Gemini (Vertex AI) format
+#[derive(Serialize)]
+pub struct GeminiRequest {
+    #[serde(rename = "systemInstruction", skip_serializing_if = "Option::is_none")]
+    pub system_instruction: Option<GeminiContent>,
+    pub contents: Vec<GeminiContent>,
+    #[serde(rename = "generationConfig", skip_serializing_if = "Option::is_none")]
+    pub generation_config: Option<GeminiGenerationConfig>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GeminiContent {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<String>,
+    pub parts: Vec<GeminiPart>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GeminiPart {
+    pub text: String,
+}
+
+#[derive(Serialize)]
+pub struct GeminiGenerationConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(rename = "maxOutputTokens", skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub seed: Option<u64>,
+    #[serde(rename = "responseMimeType", skip_serializing_if = "Option::is_none")]
+    pub response_mime_type: Option<String>,
+    #[serde(rename = "responseSchema", skip_serializing_if = "Option::is_none")]
+    pub response_schema: Option<Value>,
+}
+
+#[derive(Deserialize)]
+pub struct GeminiResponse {
+    pub candidates: Vec<GeminiCandidate>,
+}
+
+#[derive(Deserialize)]
+pub struct GeminiCandidate {
+    pub content: GeminiContent,
+}

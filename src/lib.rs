@@ -56,7 +56,8 @@ pub use pdf::{
 };
 pub use provider::{InvokeParams, LlmProvider, ProviderType};
 pub use providers::{
-    create_provider, detect_provider_type, AnthropicProvider, OllamaProvider, OpenAIProvider,
+    create_provider, detect_provider_type, AnthropicProvider, GeminiProvider, OllamaProvider,
+    OpenAIProvider,
 };
 pub use token_estimator::TokenEstimator;
 

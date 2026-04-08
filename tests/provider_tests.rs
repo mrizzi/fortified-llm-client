@@ -124,3 +124,19 @@ fn test_provider_detection_path_takes_precedence() {
         "Path /v1/chat/completions should override port 11434 detection"
     );
 }
+
+#[test]
+fn test_provider_detection_gemini_vertex() {
+    let url = "https://us-central1-aiplatform.googleapis.com/v1/projects/my-project/locations/us-central1/publishers/google/models/gemini-2.0-flash:generateContent";
+    let provider_type = detect_provider_type(url);
+    assert!(matches!(provider_type, ProviderType::Gemini));
+}
+
+#[test]
+fn test_provider_detection_gemini_explicit() {
+    let provider = fortified_llm_client::create_provider(
+        "http://localhost:8080/custom".to_string(),
+        Some(ProviderType::Gemini),
+    );
+    assert_eq!(provider.name(), "Gemini");
+}

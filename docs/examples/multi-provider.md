@@ -7,7 +7,7 @@ nav_order: 3
 
 # Multi-Provider Examples
 
-Switch between OpenAI, Ollama, and Anthropic seamlessly.
+Switch between OpenAI, Ollama, Anthropic, and Gemini seamlessly.
 
 ## Ollama (Local)
 
@@ -63,6 +63,17 @@ fortified-llm-client \
   --max-tokens 1000
 ```
 
+## Gemini (Vertex AI)
+
+```bash
+fortified-llm-client \
+  --api-url "https://us-central1-aiplatform.googleapis.com/v1/projects/MY_PROJECT/locations/us-central1/publishers/google/models/gemini-2.0-flash:generateContent" \
+  --model gemini-2.0-flash \
+  --api-key "$(gcloud auth print-access-token)" \
+  --system-text "You are a helpful assistant." \
+  --user-text "Hello"
+```
+
 ## Provider-Specific Config Files
 
 `ollama.toml`:
@@ -97,6 +108,14 @@ temperature = 0.7
 max_tokens = 1000
 ```
 
+`gemini-vertex.toml`:
+```toml
+api_url = "https://us-central1-aiplatform.googleapis.com/v1/projects/MY_PROJECT/locations/us-central1/publishers/google/models/gemini-2.0-flash:generateContent"
+model = "gemini-2.0-flash"
+temperature = 0.7
+max_tokens = 1000
+```
+
 `vertex-proxy.toml` (when Vertex AI is behind a proxy/gateway):
 ```toml
 api_url = "https://my-proxy.example.com/claude"
@@ -116,8 +135,11 @@ fortified-llm-client -c openai.toml --user-text "prompt"
 # Use Anthropic
 fortified-llm-client -c anthropic.toml --user-text "prompt"
 
-# Use Vertex AI (pass OAuth token via CLI)
+# Use Vertex AI Anthropic (pass OAuth token via CLI)
 fortified-llm-client -c vertex.toml --api-key "$(gcloud auth print-access-token)" --user-text "prompt"
+
+# Use Vertex AI Gemini (pass OAuth token via CLI)
+fortified-llm-client -c gemini-vertex.toml --api-key "$(gcloud auth print-access-token)" --user-text "prompt"
 ```
 
 ## Library Multi-Provider

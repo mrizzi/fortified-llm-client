@@ -253,7 +253,7 @@ See [Hybrid Guardrails]({{ site.baseurl }}{% link guardrails/hybrid.md %}) for d
 |-------|------|-------------|---------|
 | `api_url` | String | LLM API endpoint URL | None (required via CLI or config) |
 | `model` | String | Model name/identifier | None (required via CLI or config) |
-| `provider` | String | Force provider: `"openai"`, `"ollama"`, `"anthropic"`, or `"anthropic-vertex"` | Auto-detect |
+| `provider` | String | Force provider: `"openai"`, `"ollama"`, `"anthropic"`, `"anthropic-vertex"`, or `"gemini"` | Auto-detect |
 | `system_prompt` | String | System prompt text | None (required via CLI or config) |
 | `system_prompt_file` | String | Path to system prompt file | None |
 | `user_prompt` | String | User prompt text | None |
