@@ -122,6 +122,60 @@ impl LlmProvider for AnthropicProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::AnthropicRequest;
+
+    #[test]
+    fn test_request_has_no_system_role_in_messages() {
+        let request = AnthropicRequest {
+            model: Some("claude-sonnet-4-6".to_string()),
+            max_tokens: 4096,
+            messages: vec![AnthropicMessage {
+                role: "user".to_string(),
+                content: "Hello".to_string(),
+            }],
+            system: Some("You are helpful".to_string()),
+            temperature: 0.7,
+            anthropic_version: None,
+        };
+
+        let json = serde_json::to_value(&request).unwrap();
+
+        // System prompt must be a top-level field, never a message role
+        let messages = json["messages"].as_array().unwrap();
+        for msg in messages {
+            assert_ne!(
+                msg["role"].as_str().unwrap(),
+                "system",
+                "system prompt must not appear as a message role in Anthropic API"
+            );
+        }
+        assert_eq!(json["system"].as_str().unwrap(), "You are helpful");
+    }
+
+    #[test]
+    fn test_vertex_request_omits_model_and_includes_version() {
+        let request = AnthropicRequest {
+            model: None,
+            max_tokens: 4096,
+            messages: vec![AnthropicMessage {
+                role: "user".to_string(),
+                content: "Hello".to_string(),
+            }],
+            system: Some("You are helpful".to_string()),
+            temperature: 0.7,
+            anthropic_version: Some("vertex-2023-10-16".to_string()),
+        };
+
+        let json = serde_json::to_value(&request).unwrap();
+        assert!(
+            json.get("model").is_none(),
+            "Vertex requests must omit model"
+        );
+        assert_eq!(
+            json["anthropic_version"].as_str().unwrap(),
+            "vertex-2023-10-16"
+        );
+    }
 
     #[test]
     fn test_anthropic_provider_direct_mode() {

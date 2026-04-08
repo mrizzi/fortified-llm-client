@@ -16,7 +16,7 @@ pub struct ConfigFileRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
 
-    /// Provider type (optional: "ollama" or "openai", auto-detected if not specified)
+    /// Provider type (optional: "ollama", "openai", or "anthropic", auto-detected if not specified)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
 
