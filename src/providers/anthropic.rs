@@ -1,6 +1,9 @@
 use crate::{
     error::CliError,
-    models::{AnthropicMessage, AnthropicRequest, AnthropicResponse},
+    models::{
+        AnthropicMessage, AnthropicOutputConfig, AnthropicOutputFormat, AnthropicRequest,
+        AnthropicResponse, ResponseFormat,
+    },
     provider::{InvokeParams, LlmProvider},
 };
 use async_trait::async_trait;
@@ -56,6 +59,21 @@ impl LlmProvider for AnthropicProvider {
     async fn invoke(&self, params: InvokeParams<'_>) -> Result<String, CliError> {
         let max_tokens = params.max_tokens.unwrap_or(DEFAULT_MAX_TOKENS);
 
+        let output_config = params.response_format.and_then(|fmt| match fmt {
+            ResponseFormat::JsonSchema { json_schema } => Some(AnthropicOutputConfig {
+                format: AnthropicOutputFormat::JsonSchema {
+                    schema: json_schema.schema.clone(),
+                },
+            }),
+            ResponseFormat::JsonObject => {
+                log::warn!(
+                    "Anthropic provider does not support 'json-object' response format; ignoring"
+                );
+                None
+            }
+            ResponseFormat::Text => None,
+        });
+
         let request = AnthropicRequest {
             model: match self.mode {
                 AnthropicMode::Direct => Some(params.model.to_string()),
@@ -76,6 +94,7 @@ impl LlmProvider for AnthropicProvider {
                 AnthropicMode::Vertex => Some("vertex-2023-10-16".to_string()),
                 AnthropicMode::Direct => None,
             },
+            output_config,
         };
 
         log_request(&request);
@@ -144,6 +163,7 @@ mod tests {
             system: Some("You are helpful".to_string()),
             temperature: 0.7,
             anthropic_version: None,
+            output_config: None,
         };
 
         let json = serde_json::to_value(&request).unwrap();
@@ -172,6 +192,7 @@ mod tests {
             system: Some("You are helpful".to_string()),
             temperature: 0.7,
             anthropic_version: Some("vertex-2023-10-16".to_string()),
+            output_config: None,
         };
 
         let json = serde_json::to_value(&request).unwrap();
@@ -183,6 +204,40 @@ mod tests {
             json["anthropic_version"].as_str().unwrap(),
             "vertex-2023-10-16"
         );
+    }
+
+    #[test]
+    fn test_output_config_json_schema() {
+        let schema = serde_json::json!({
+            "type": "object",
+            "properties": {
+                "name": { "type": "string" },
+                "age": { "type": "number" }
+            },
+            "required": ["name", "age"]
+        });
+
+        let request = AnthropicRequest {
+            model: Some("claude-sonnet-4-6".to_string()),
+            max_tokens: 4096,
+            messages: vec![AnthropicMessage {
+                role: "user".to_string(),
+                content: "Hello".to_string(),
+            }],
+            system: None,
+            temperature: 0.7,
+            anthropic_version: None,
+            output_config: Some(AnthropicOutputConfig {
+                format: AnthropicOutputFormat::JsonSchema {
+                    schema: schema.clone(),
+                },
+            }),
+        };
+
+        let json = serde_json::to_value(&request).unwrap();
+        let output_config = &json["output_config"];
+        assert_eq!(output_config["format"]["type"], "json_schema");
+        assert_eq!(output_config["format"]["schema"], schema);
     }
 
     #[test]
