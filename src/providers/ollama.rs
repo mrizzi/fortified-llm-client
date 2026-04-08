@@ -6,7 +6,7 @@ use crate::{
 use async_trait::async_trait;
 use reqwest::Client;
 
-use super::logging::{log_request, log_response};
+use super::logging::{handle_error_response, log_request, log_response};
 
 /// Provider for Ollama /api/generate format (local servers)
 pub struct OllamaProvider {
@@ -49,10 +49,7 @@ impl LlmProvider for OllamaProvider {
             .await?;
 
         if !response.status().is_success() {
-            return Err(CliError::InvalidResponse(format!(
-                "HTTP error: {}",
-                response.status()
-            )));
+            return Err(handle_error_response(response).await);
         }
 
         // Get response body as text for logging and parsing

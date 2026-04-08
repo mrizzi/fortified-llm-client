@@ -1,8 +1,8 @@
 use crate::{
     error::CliError,
     models::{
-        AnthropicMessage, AnthropicOutputConfig, AnthropicOutputFormat, AnthropicRequest,
-        AnthropicResponse, ResponseFormat,
+        AnthropicContentBlock, AnthropicMessage, AnthropicOutputConfig, AnthropicOutputFormat,
+        AnthropicRequest, AnthropicResponse, ResponseFormat,
     },
     provider::{InvokeParams, LlmProvider},
 };
@@ -66,26 +66,30 @@ impl LlmProvider for AnthropicProvider {
                 .response_format
                 .is_some_and(|f| !matches!(f, ResponseFormat::Text))
             {
-                log::warn!(
-                    "Vertex AI does not support structured output (output_config); ignoring response_format"
-                );
+                return Err(CliError::InvalidArguments(
+                    "Vertex AI does not support structured output (output_config). \
+                     Use the direct Anthropic API for json-schema response format, \
+                     or remove the response_format setting."
+                        .to_string(),
+                ));
             }
             None
         } else {
-            params.response_format.and_then(|fmt| match fmt {
-                ResponseFormat::JsonSchema { json_schema } => Some(AnthropicOutputConfig {
+            match params.response_format {
+                Some(ResponseFormat::JsonSchema { json_schema }) => Some(AnthropicOutputConfig {
                     format: AnthropicOutputFormat::JsonSchema {
                         schema: json_schema.schema.clone(),
                     },
                 }),
-                ResponseFormat::JsonObject => {
-                    log::warn!(
-                        "Anthropic provider does not support 'json-object' response format; ignoring"
-                    );
-                    None
+                Some(ResponseFormat::JsonObject) => {
+                    return Err(CliError::InvalidArguments(
+                        "Anthropic does not support 'json-object' response format. \
+                         Use 'json-schema' with a schema file instead."
+                            .to_string(),
+                    ));
                 }
-                ResponseFormat::Text => None,
-            })
+                Some(ResponseFormat::Text) | None => None,
+            }
         };
 
         let request = AnthropicRequest {
@@ -150,9 +154,23 @@ impl LlmProvider for AnthropicProvider {
         anthropic_response
             .content
             .iter()
-            .find(|block| block.block_type == "text")
-            .and_then(|block| block.text.clone())
-            .ok_or_else(|| CliError::InvalidResponse("No text content in response".to_string()))
+            .find_map(|block| match block {
+                AnthropicContentBlock::Text { text } => Some(text.clone()),
+                _ => None,
+            })
+            .ok_or_else(|| {
+                let block_types: Vec<&str> = anthropic_response
+                    .content
+                    .iter()
+                    .map(|b| match b {
+                        AnthropicContentBlock::Text { .. } => "text",
+                        AnthropicContentBlock::Other => "unknown",
+                    })
+                    .collect();
+                CliError::InvalidResponse(format!(
+                    "No text content in Anthropic response. Content blocks received: {block_types:?}"
+                ))
+            })
     }
 
     fn name(&self) -> &str {
