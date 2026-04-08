@@ -41,6 +41,14 @@ impl AnthropicProvider {
             mode,
         }
     }
+
+    pub fn new_vertex(api_url: String) -> Self {
+        Self {
+            client: Client::new(),
+            api_url,
+            mode: AnthropicMode::Vertex,
+        }
+    }
 }
 
 #[async_trait]
