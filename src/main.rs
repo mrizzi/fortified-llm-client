@@ -258,6 +258,9 @@ enum ProviderArg {
     #[value(name = "anthropic")]
     #[serde(rename = "anthropic")]
     Anthropic,
+    #[value(name = "anthropic-vertex")]
+    #[serde(rename = "anthropic-vertex")]
+    AnthropicVertex,
 }
 
 impl From<ProviderArg> for Provider {
@@ -266,6 +269,7 @@ impl From<ProviderArg> for Provider {
             ProviderArg::Ollama => Provider::Ollama,
             ProviderArg::OpenAI => Provider::OpenAI,
             ProviderArg::Anthropic => Provider::Anthropic,
+            ProviderArg::AnthropicVertex => Provider::AnthropicVertex,
         }
     }
 }

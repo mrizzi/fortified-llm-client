@@ -113,6 +113,7 @@ pub fn create_provider(
         ProviderType::Ollama => Box::new(OllamaProvider::new(api_url)),
         ProviderType::OpenAI => Box::new(OpenAIProvider::new(api_url)),
         ProviderType::Anthropic => Box::new(AnthropicProvider::new(api_url)),
+        ProviderType::AnthropicVertex => Box::new(AnthropicProvider::new_vertex(api_url)),
     }
 }
 
