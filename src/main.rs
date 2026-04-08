@@ -94,7 +94,7 @@ struct Args {
     #[serde(skip_serializing_if = "Option::is_none")]
     context_limit: Option<usize>,
 
-    /// Response format (json-object, json-schema, or text, OpenAI-compatible only)
+    /// Response format (json-object, json-schema, or text; support varies by provider)
     #[arg(long, value_enum)]
     #[serde(skip_serializing_if = "Option::is_none")]
     response_format: Option<ResponseFormatArg>,

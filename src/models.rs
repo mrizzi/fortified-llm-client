@@ -165,22 +165,31 @@ pub enum AnthropicContentBlock {
 #[derive(Serialize)]
 pub struct GeminiRequest {
     #[serde(rename = "systemInstruction", skip_serializing_if = "Option::is_none")]
-    pub system_instruction: Option<GeminiContent>,
+    pub system_instruction: Option<GeminiSystemInstruction>,
     pub contents: Vec<GeminiContent>,
     #[serde(rename = "generationConfig", skip_serializing_if = "Option::is_none")]
     pub generation_config: Option<GeminiGenerationConfig>,
+}
+
+/// Dedicated system instruction type (no role field, unlike GeminiContent)
+#[derive(Serialize)]
+pub struct GeminiSystemInstruction {
+    pub parts: Vec<GeminiPart>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct GeminiContent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub role: Option<String>,
+    #[serde(default)]
     pub parts: Vec<GeminiPart>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct GeminiPart {
-    pub text: String,
+    /// Text content. None for non-text parts (function calls, images, etc.)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -199,10 +208,21 @@ pub struct GeminiGenerationConfig {
 
 #[derive(Deserialize)]
 pub struct GeminiResponse {
+    #[serde(default)]
     pub candidates: Vec<GeminiCandidate>,
+    #[serde(rename = "promptFeedback")]
+    pub prompt_feedback: Option<GeminiPromptFeedback>,
+}
+
+#[derive(Deserialize)]
+pub struct GeminiPromptFeedback {
+    #[serde(rename = "blockReason")]
+    pub block_reason: Option<String>,
 }
 
 #[derive(Deserialize)]
 pub struct GeminiCandidate {
-    pub content: GeminiContent,
+    pub content: Option<GeminiContent>,
+    #[serde(rename = "finishReason")]
+    pub finish_reason: Option<String>,
 }

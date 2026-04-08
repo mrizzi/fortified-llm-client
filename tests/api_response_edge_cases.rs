@@ -411,6 +411,262 @@ async fn test_ollama_missing_response_field() {
 }
 
 // =============================================================================
+// GEMINI PROVIDER EDGE CASES
+// =============================================================================
+
+async fn create_gemini_test_config(api_url: String) -> EvaluationConfig {
+    EvaluationConfig {
+        api_url,
+        model: "gemini-pro".to_string(),
+        system_prompt: "Test system".to_string(),
+        user_prompt: "Test user".to_string(),
+        provider: Some(Provider::Gemini),
+        temperature: 0.0,
+        max_tokens: Some(100),
+        seed: None,
+        api_key: Some("test-token".to_string()),
+        timeout_secs: 5,
+        validate_tokens: false,
+        context_limit: None,
+        response_format: None,
+        pdf_input: None,
+        input_guardrails: None,
+        output_guardrails: None,
+        system_prompt_file: None,
+        user_prompt_file: None,
+    }
+}
+
+#[tokio::test]
+async fn test_gemini_successful_response() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock("POST", "/v1/projects/test/locations/test/publishers/google/models/test:generateContent")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"candidates": [{"content": {"role": "model", "parts": [{"text": "Hello from Gemini"}]}, "finishReason": "STOP"}]}"#)
+        .create_async()
+        .await;
+
+    let config = create_gemini_test_config(
+        server.url()
+            + "/v1/projects/test/locations/test/publishers/google/models/test:generateContent",
+    )
+    .await;
+    let result = evaluate(config).await;
+
+    assert!(result.is_ok(), "Should succeed with valid Gemini response");
+    let output = result.unwrap();
+    assert_eq!(
+        output.response,
+        Some(serde_json::Value::String("Hello from Gemini".to_string()))
+    );
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_gemini_empty_candidates() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock(
+            "POST",
+            "/v1/projects/test/locations/test/publishers/google/models/test:generateContent",
+        )
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"candidates": []}"#)
+        .create_async()
+        .await;
+
+    let config = create_gemini_test_config(
+        server.url()
+            + "/v1/projects/test/locations/test/publishers/google/models/test:generateContent",
+    )
+    .await;
+    let result = evaluate(config).await;
+
+    assert!(
+        result.is_err(),
+        "Should fail when candidates array is empty"
+    );
+    if let Err(err) = result {
+        let msg = err.to_string();
+        assert!(
+            msg.contains("No text content"),
+            "Should mention no text content, got: {msg}"
+        );
+    }
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_gemini_safety_blocked_prompt() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock(
+            "POST",
+            "/v1/projects/test/locations/test/publishers/google/models/test:generateContent",
+        )
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"promptFeedback": {"blockReason": "SAFETY"}}"#)
+        .create_async()
+        .await;
+
+    let config = create_gemini_test_config(
+        server.url()
+            + "/v1/projects/test/locations/test/publishers/google/models/test:generateContent",
+    )
+    .await;
+    let result = evaluate(config).await;
+
+    assert!(result.is_err(), "Should fail when prompt is blocked");
+    if let Err(err) = result {
+        let msg = err.to_string();
+        assert!(
+            msg.contains("blocked") && msg.contains("SAFETY"),
+            "Should mention safety block, got: {msg}"
+        );
+    }
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_gemini_safety_blocked_candidate() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock(
+            "POST",
+            "/v1/projects/test/locations/test/publishers/google/models/test:generateContent",
+        )
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"candidates": [{"finishReason": "SAFETY"}]}"#)
+        .create_async()
+        .await;
+
+    let config = create_gemini_test_config(
+        server.url()
+            + "/v1/projects/test/locations/test/publishers/google/models/test:generateContent",
+    )
+    .await;
+    let result = evaluate(config).await;
+
+    assert!(result.is_err(), "Should fail when candidate is blocked");
+    if let Err(err) = result {
+        let msg = err.to_string();
+        assert!(
+            msg.contains("SAFETY"),
+            "Should mention SAFETY finish reason, got: {msg}"
+        );
+    }
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_gemini_malformed_json() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock(
+            "POST",
+            "/v1/projects/test/locations/test/publishers/google/models/test:generateContent",
+        )
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body("{not valid json")
+        .create_async()
+        .await;
+
+    let config = create_gemini_test_config(
+        server.url()
+            + "/v1/projects/test/locations/test/publishers/google/models/test:generateContent",
+    )
+    .await;
+    let result = evaluate(config).await;
+
+    assert!(result.is_err());
+    if let Err(err) = result {
+        let msg = err.to_string();
+        assert!(
+            msg.to_lowercase().contains("parse"),
+            "Should mention parse error, got: {msg}"
+        );
+    }
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_gemini_401_unauthorized() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock(
+            "POST",
+            "/v1/projects/test/locations/test/publishers/google/models/test:generateContent",
+        )
+        .with_status(401)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"error": {"message": "Invalid credentials", "status": "UNAUTHENTICATED"}}"#)
+        .create_async()
+        .await;
+
+    let config = create_gemini_test_config(
+        server.url()
+            + "/v1/projects/test/locations/test/publishers/google/models/test:generateContent",
+    )
+    .await;
+    let result = evaluate(config).await;
+
+    assert!(result.is_err());
+    if let Err(err) = result {
+        let msg = err.to_string();
+        assert!(
+            msg.to_lowercase().contains("authentication") || msg.contains("Invalid credentials"),
+            "Should mention authentication error, got: {msg}"
+        );
+    }
+
+    mock.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_gemini_500_error() {
+    let mut server = Server::new_async().await;
+    let mock = server
+        .mock(
+            "POST",
+            "/v1/projects/test/locations/test/publishers/google/models/test:generateContent",
+        )
+        .with_status(500)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"error": {"message": "Internal error", "status": "INTERNAL"}}"#)
+        .create_async()
+        .await;
+
+    let config = create_gemini_test_config(
+        server.url()
+            + "/v1/projects/test/locations/test/publishers/google/models/test:generateContent",
+    )
+    .await;
+    let result = evaluate(config).await;
+
+    assert!(result.is_err());
+    if let Err(err) = result {
+        let msg = err.to_string();
+        assert!(
+            msg.contains("500") && msg.contains("Internal error"),
+            "Should include status and error body, got: {msg}"
+        );
+    }
+
+    mock.assert_async().await;
+}
+
+// =============================================================================
 // ANTHROPIC PROVIDER EDGE CASES
 // =============================================================================
 

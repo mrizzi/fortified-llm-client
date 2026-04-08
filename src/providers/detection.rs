@@ -77,7 +77,12 @@ pub fn detect_provider_type(url: &str) -> ProviderType {
         if url.contains("/publishers/google/") {
             return ProviderType::Gemini;
         }
-        // Fallback to Anthropic for backward compatibility
+        if !url.contains("/publishers/anthropic/") {
+            log::warn!(
+                "Vertex AI URL without recognized publisher, defaulting to Anthropic. \
+                 Use --provider to override if needed."
+            );
+        }
         return ProviderType::Anthropic;
     }
 
