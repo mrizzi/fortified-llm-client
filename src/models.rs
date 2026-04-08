@@ -125,6 +125,20 @@ pub struct AnthropicRequest {
     pub temperature: f32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub anthropic_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_config: Option<AnthropicOutputConfig>,
+}
+
+#[derive(Serialize)]
+pub struct AnthropicOutputConfig {
+    pub format: AnthropicOutputFormat,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "type")]
+pub enum AnthropicOutputFormat {
+    #[serde(rename = "json_schema")]
+    JsonSchema { schema: Value },
 }
 
 #[derive(Serialize, Deserialize)]
