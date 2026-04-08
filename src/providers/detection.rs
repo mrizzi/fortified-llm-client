@@ -1,19 +1,24 @@
 use crate::provider::{LlmProvider, ProviderType};
 
-use super::{ollama::OllamaProvider, openai::OpenAIProvider};
+use super::{anthropic::AnthropicProvider, ollama::OllamaProvider, openai::OpenAIProvider};
 
 /// Detect API format from URL
 ///
 /// # Detection Strategy
 ///
 /// 1. **Path-based detection** (highest priority):
+///    - `/v1/messages` → Anthropic
 ///    - `/api/generate` → Ollama
 ///    - `/v1/chat/completions` → OpenAI
 ///
-/// 2. **Port-based detection** (fallback):
+/// 2. **Host-based detection**:
+///    - `anthropic.com` → Anthropic
+///    - `aiplatform.googleapis.com` → Anthropic (Vertex AI)
+///
+/// 3. **Port-based detection** (fallback):
 ///    - Port 11434 → Ollama (common local server port)
 ///
-/// 3. **Default**: OpenAI (industry standard for cloud APIs)
+/// 4. **Default**: OpenAI (industry standard for cloud APIs)
 ///
 /// # Examples
 ///
@@ -21,6 +26,11 @@ use super::{ollama::OllamaProvider, openai::OpenAIProvider};
 /// use fortified_llm_client::{detect_provider_type, ProviderType};
 ///
 /// // Path-based detection
+/// assert!(matches!(
+///     detect_provider_type("https://api.anthropic.com/v1/messages"),
+///     ProviderType::Anthropic
+/// ));
+///
 /// assert!(matches!(
 ///     detect_provider_type("http://localhost:11434/api/generate"),
 ///     ProviderType::Ollama
@@ -46,11 +56,19 @@ use super::{ollama::OllamaProvider, openai::OpenAIProvider};
 pub fn detect_provider_type(url: &str) -> ProviderType {
     // Path-based detection (most explicit, highest priority)
     // Respect the user's explicit endpoint path choice
+    if url.contains("/v1/messages") {
+        return ProviderType::Anthropic;
+    }
     if url.contains("/api/generate") {
         return ProviderType::Ollama;
     }
     if url.contains("/v1/chat/completions") {
         return ProviderType::OpenAI;
+    }
+
+    // Host-based detection
+    if url.contains("anthropic.com") || url.contains("aiplatform.googleapis.com") {
+        return ProviderType::Anthropic;
     }
 
     // Port-based detection (fallback for ambiguous URLs)
@@ -94,6 +112,7 @@ pub fn create_provider(
     match provider {
         ProviderType::Ollama => Box::new(OllamaProvider::new(api_url)),
         ProviderType::OpenAI => Box::new(OpenAIProvider::new(api_url)),
+        ProviderType::Anthropic => Box::new(AnthropicProvider::new(api_url)),
     }
 }
 
@@ -158,5 +177,38 @@ mod tests {
             Some(ProviderType::Ollama),
         );
         assert_eq!(provider.name(), "Ollama");
+    }
+
+    #[test]
+    fn test_detect_anthropic_by_path() {
+        let url = "https://api.anthropic.com/v1/messages";
+        assert!(matches!(detect_provider_type(url), ProviderType::Anthropic));
+    }
+
+    #[test]
+    fn test_detect_anthropic_by_host() {
+        let url = "https://api.anthropic.com/custom";
+        assert!(matches!(detect_provider_type(url), ProviderType::Anthropic));
+    }
+
+    #[test]
+    fn test_detect_anthropic_vertex_by_host() {
+        let url = "https://global-aiplatform.googleapis.com/v1/projects/my-project/locations/global/publishers/anthropic/models/claude-sonnet-4-6:streamRawPredict";
+        assert!(matches!(detect_provider_type(url), ProviderType::Anthropic));
+    }
+
+    #[test]
+    fn test_create_provider_auto_detect_anthropic() {
+        let provider = create_provider("https://api.anthropic.com/v1/messages".to_string(), None);
+        assert_eq!(provider.name(), "Anthropic");
+    }
+
+    #[test]
+    fn test_create_provider_explicit_anthropic() {
+        let provider = create_provider(
+            "http://localhost:8080/custom".to_string(),
+            Some(ProviderType::Anthropic),
+        );
+        assert_eq!(provider.name(), "Anthropic");
     }
 }

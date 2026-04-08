@@ -127,4 +127,6 @@ pub enum ProviderType {
     Ollama,
     /// OpenAI-compatible /v1/chat/completions format
     OpenAI,
+    /// Anthropic /v1/messages format (direct API and Vertex AI)
+    Anthropic,
 }

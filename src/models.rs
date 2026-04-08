@@ -112,3 +112,36 @@ pub struct OllamaOptions {
 pub struct OllamaResponse {
     pub response: String,
 }
+
+// Anthropic Messages API format
+#[derive(Serialize)]
+pub struct AnthropicRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    pub max_tokens: u32,
+    pub messages: Vec<AnthropicMessage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub system: Option<String>,
+    pub temperature: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anthropic_version: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct AnthropicMessage {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Deserialize)]
+pub struct AnthropicResponse {
+    pub content: Vec<AnthropicContentBlock>,
+}
+
+#[derive(Deserialize)]
+pub struct AnthropicContentBlock {
+    #[serde(rename = "type")]
+    pub block_type: String,
+    #[serde(default)]
+    pub text: Option<String>,
+}

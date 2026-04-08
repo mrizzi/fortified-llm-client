@@ -55,7 +55,9 @@ pub use pdf::{
     extract_text_from_pdf, is_docling_available, to_markdown, ContentFormat, PdfContent,
 };
 pub use provider::{InvokeParams, LlmProvider, ProviderType};
-pub use providers::{create_provider, detect_provider_type, OllamaProvider, OpenAIProvider};
+pub use providers::{
+    create_provider, detect_provider_type, AnthropicProvider, OllamaProvider, OpenAIProvider,
+};
 pub use token_estimator::TokenEstimator;
 
 use std::{path::PathBuf, time::Instant};

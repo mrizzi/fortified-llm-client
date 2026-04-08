@@ -66,7 +66,8 @@ impl ConfigBuilder {
                 match provider_str.to_lowercase().as_str() {
                     "ollama" => self.provider = Some(Provider::Ollama),
                     "openai" => self.provider = Some(Provider::OpenAI),
-                    _ => log::warn!("Unknown provider '{provider_str}' in config file. Valid values: 'ollama', 'openai'"),
+                    "anthropic" => self.provider = Some(Provider::Anthropic),
+                    _ => log::warn!("Unknown provider '{provider_str}' in config file. Valid values: 'ollama', 'openai', 'anthropic'"),
                 }
             }
         }
