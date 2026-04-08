@@ -235,6 +235,7 @@ Mode is auto-detected: URLs containing `aiplatform.googleapis.com` use Vertex mo
 3. **`max_tokens` is required** - Defaults to 4096 when not specified
 4. **Different response format** - Content blocks array instead of choices
 5. **Vertex AI specifics** - Model omitted from body (in URL), `anthropic_version` in body
+6. **Structured output** - Uses `output_config` instead of `response_format` (see below)
 
 ### Request Format (Direct API)
 
@@ -263,6 +264,37 @@ Mode is auto-detected: URLs containing `aiplatform.googleapis.com` use Vertex mo
   "temperature": 0.7
 }
 ```
+
+### Structured Output (JSON Schema)
+
+When `response_format = "json-schema"` is configured, the Anthropic provider maps it to Anthropic's `output_config` parameter:
+
+```json
+{
+  "model": "claude-sonnet-4-6",
+  "max_tokens": 4096,
+  "messages": [
+    {"role": "user", "content": "Extract name and age from: John is 30"}
+  ],
+  "output_config": {
+    "format": {
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "age": {"type": "number"}
+        },
+        "required": ["name", "age"]
+      }
+    }
+  },
+  "temperature": 0.7
+}
+```
+
+{: .note }
+> Anthropic does not support `json-object` mode (OpenAI-only). Only `json-schema` is supported for structured output. Using `json-object` with the Anthropic provider logs a warning and is ignored.
 
 ### Response Format
 

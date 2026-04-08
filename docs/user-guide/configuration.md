@@ -263,7 +263,7 @@ See [Hybrid Guardrails]({{ site.baseurl }}{% link guardrails/hybrid.md %}) for d
 | `seed` | Integer | Random seed for reproducibility | None |
 | `validate_tokens` | Boolean | Enable token validation | `false` |
 | `context_limit` | Integer | Override context window limit | Auto-detect |
-| `response_format` | String | `"text"`, `"json-object"`, or `"json-schema"` | `"text"` |
+| `response_format` | String | `"text"`, `"json-object"`, or `"json-schema"` (note: Anthropic only supports `"json-schema"`) | `"text"` |
 | `response_format_schema` | String | Path to JSON Schema file | None |
 | `response_format_schema_strict` | Boolean | Strict schema validation | `true` |
 | `api_key` | String | API key (direct value) | None |
