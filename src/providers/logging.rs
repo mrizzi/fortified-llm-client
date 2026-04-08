@@ -1,4 +1,32 @@
+use crate::error::CliError;
 use serde::Serialize;
+
+/// Handle non-success HTTP responses uniformly across providers.
+///
+/// Maps 401 to `AuthenticationFailed` and all other errors to
+/// `InvalidResponse` with the status code, reason, and API response body.
+pub async fn handle_error_response(response: reqwest::Response) -> CliError {
+    let status = response.status();
+
+    if status == 401 {
+        return CliError::AuthenticationFailed("Invalid or missing API key".to_string());
+    }
+
+    let error_body = response.text().await.unwrap_or_default();
+
+    let error_msg = format!(
+        "HTTP {} error: {}\nResponse from API: {}",
+        status.as_u16(),
+        status.canonical_reason().unwrap_or("Unknown error"),
+        if error_body.is_empty() {
+            "No details provided"
+        } else {
+            &error_body
+        }
+    );
+
+    CliError::InvalidResponse(error_msg)
+}
 
 /// Log request JSON for debugging (pretty-printed if possible)
 pub fn log_request<T: Serialize>(request: &T) {
