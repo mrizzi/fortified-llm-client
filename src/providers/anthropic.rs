@@ -6,7 +6,7 @@ use crate::{
 use async_trait::async_trait;
 use reqwest::Client;
 
-use super::logging::{log_request, log_response};
+use super::logging::{handle_error_response, log_request, log_response};
 
 /// Default max_tokens when not specified by the user (Anthropic requires this field)
 const DEFAULT_MAX_TOKENS: u32 = 4096;
@@ -78,7 +78,6 @@ impl LlmProvider for AnthropicProvider {
             .json(&request)
             .timeout(std::time::Duration::from_secs(params.timeout_secs));
 
-        // Set auth headers based on mode
         match self.mode {
             AnthropicMode::Direct => {
                 if let Some(key) = params.api_key {
@@ -98,28 +97,7 @@ impl LlmProvider for AnthropicProvider {
         let response = req.send().await?;
 
         if !response.status().is_success() {
-            let status = response.status();
-
-            if status == 401 {
-                return Err(CliError::AuthenticationFailed(
-                    "Invalid or missing API key".to_string(),
-                ));
-            }
-
-            let error_body = response.text().await.unwrap_or_default();
-
-            let error_msg = format!(
-                "HTTP {} error: {}\nResponse from API: {}",
-                status.as_u16(),
-                status.canonical_reason().unwrap_or("Unknown error"),
-                if error_body.is_empty() {
-                    "No details provided"
-                } else {
-                    &error_body
-                }
-            );
-
-            return Err(CliError::InvalidResponse(error_msg));
+            return Err(handle_error_response(response).await);
         }
 
         let response_text = response.text().await?;
@@ -128,7 +106,6 @@ impl LlmProvider for AnthropicProvider {
         let anthropic_response: AnthropicResponse = serde_json::from_str(&response_text)
             .map_err(|e| CliError::InvalidResponse(format!("Failed to parse response: {e}")))?;
 
-        // Extract text from the first text content block
         anthropic_response
             .content
             .iter()

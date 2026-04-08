@@ -6,7 +6,7 @@ use crate::{
 use async_trait::async_trait;
 use reqwest::Client;
 
-use super::logging::{log_request, log_response};
+use super::logging::{handle_error_response, log_request, log_response};
 
 /// OpenAI-compatible provider implementation
 pub struct OpenAIProvider {
@@ -60,30 +60,7 @@ impl LlmProvider for OpenAIProvider {
         let response = req.send().await?;
 
         if !response.status().is_success() {
-            let status = response.status();
-
-            // Special case: 401 authentication error
-            if status == 401 {
-                return Err(CliError::AuthenticationFailed(
-                    "Invalid or missing API key".to_string(),
-                ));
-            }
-
-            let error_body = response.text().await.unwrap_or_default();
-
-            // Let the API's error message speak for itself
-            let error_msg = format!(
-                "HTTP {} error: {}\nResponse from API: {}",
-                status.as_u16(),
-                status.canonical_reason().unwrap_or("Unknown error"),
-                if error_body.is_empty() {
-                    "No details provided"
-                } else {
-                    &error_body
-                }
-            );
-
-            return Err(CliError::InvalidResponse(error_msg));
+            return Err(handle_error_response(response).await);
         }
 
         // Get response body as text for logging and parsing
