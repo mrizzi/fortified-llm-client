@@ -419,6 +419,52 @@ max_length_bytes = 2000
     }
 }
 
+/// Test that JsonSchema output guardrails can be loaded from config file
+#[test]
+fn test_json_schema_output_guardrails_loads_from_config() {
+    // Create a temporary schema file
+    let mut schema_file = tempfile::Builder::new().suffix(".json").tempfile().unwrap();
+    schema_file
+        .write_all(
+            br#"{"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}"#,
+        )
+        .unwrap();
+    schema_file.flush().unwrap();
+
+    let schema_path = schema_file.path().to_str().unwrap().replace('\\', "/");
+
+    let config_content = format!(
+        r#"
+api_url = "http://localhost:11434/api/generate"
+model = "test-model"
+system_prompt = "Test system"
+user_prompt = "Test user"
+
+[guardrails.output]
+type = "json_schema"
+schema_file = "{}"
+"#,
+        schema_path
+    );
+
+    let mut temp_config = tempfile::Builder::new().suffix(".toml").tempfile().unwrap();
+    temp_config.write_all(config_content.as_bytes()).unwrap();
+    temp_config.flush().unwrap();
+
+    let config: ConfigFileRequest = load_config_file(temp_config.path().to_str().unwrap()).unwrap();
+
+    assert!(config.guardrails.is_some());
+    let guardrails = config.guardrails.unwrap();
+    assert!(guardrails.output.is_some());
+
+    match guardrails.output.as_ref().unwrap() {
+        GuardrailProviderConfig::JsonSchema { schema_file } => {
+            assert!(schema_file.to_str().unwrap().ends_with(".json"));
+        }
+        _ => panic!("Expected JsonSchema variant, got {:?}", guardrails.output),
+    }
+}
+
 /// Test that ConfigBuilder correctly applies flattened provider to output guardrails
 #[test]
 fn test_config_builder_applies_flattened_to_output() {

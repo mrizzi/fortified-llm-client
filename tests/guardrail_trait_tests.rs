@@ -1,6 +1,8 @@
 use fortified_llm_client::guardrails::{
-    config::RegexGuardrailConfig, GuardrailProvider, RegexGuardrail, Severity,
+    config::RegexGuardrailConfig, json_schema::JsonSchemaGuardrail, GuardrailProvider,
+    RegexGuardrail, Severity,
 };
+use std::io::Write;
 
 #[tokio::test]
 async fn test_input_guardrail_trait_implementation() {
@@ -92,4 +94,36 @@ async fn test_severity_threshold() {
 
     let result = guardrail.validate("test").await.unwrap();
     assert!(result.passed);
+}
+
+#[tokio::test]
+async fn test_json_schema_guardrail_trait_implementation() {
+    let mut temp = tempfile::Builder::new().suffix(".json").tempfile().unwrap();
+    temp.write_all(br#"{"type": "object", "properties": {"key": {"type": "string"}}}"#)
+        .unwrap();
+    temp.flush().unwrap();
+    let guardrail = JsonSchemaGuardrail::new(temp.path().to_path_buf()).unwrap();
+
+    let result = guardrail.validate(r#"{"key": "value"}"#).await.unwrap();
+    assert!(result.passed);
+    assert_eq!(guardrail.name(), "JsonSchemaGuardrail");
+    assert!(result.quality_score.is_none());
+}
+
+#[tokio::test]
+async fn test_json_schema_guardrail_rejects_invalid() {
+    let mut temp = tempfile::Builder::new().suffix(".json").tempfile().unwrap();
+    temp.write_all(
+        br#"{"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]}"#,
+    )
+    .unwrap();
+    temp.flush().unwrap();
+    let guardrail = JsonSchemaGuardrail::new(temp.path().to_path_buf()).unwrap();
+
+    let result = guardrail.validate(r#"{"wrong": 123}"#).await.unwrap();
+    assert!(!result.passed);
+    assert!(result
+        .violations
+        .iter()
+        .any(|v| v.rule == "JSON_SCHEMA_VIOLATION"));
 }

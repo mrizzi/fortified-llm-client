@@ -334,10 +334,15 @@ async fn main() {
     // Run the main logic and handle errors
     match run(args).await {
         Ok(output) => {
+            let is_error = output.is_error();
             // Write output (to file or stdout)
             if let Err(e) = write_output(&output, output_path.as_ref()) {
                 eprintln!("Error writing output: {e}");
                 process::exit(1);
+            }
+            if is_error {
+                // Guardrail or evaluation error with structured output
+                process::exit(9);
             }
             process::exit(0);
         }

@@ -96,6 +96,11 @@ impl CliOutput {
         }
     }
 
+    /// Check if this output represents an error
+    pub fn is_error(&self) -> bool {
+        self.status == "error"
+    }
+
     /// Create an error output
     pub fn error(code: String, message: String, metadata: Metadata) -> Self {
         Self {
