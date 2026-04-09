@@ -10,6 +10,11 @@ use std::path::PathBuf;
 /// When exceeded, remaining errors are summarized in one additional entry.
 const MAX_VIOLATIONS: usize = 25;
 
+/// Rule name for JSON parse failures (content is not valid JSON).
+pub const RULE_JSON_PARSE_ERROR: &str = "JSON_PARSE_ERROR";
+/// Rule name for JSON Schema validation failures (content doesn't match schema).
+pub const RULE_JSON_SCHEMA_VIOLATION: &str = "JSON_SCHEMA_VIOLATION";
+
 /// JSON Schema guardrail that validates content against a compiled JSON Schema.
 ///
 /// The schema is compiled once at construction time and reused for all validations.
@@ -73,7 +78,7 @@ impl GuardrailProvider for JsonSchemaGuardrail {
             return Ok(GuardrailResult::without_quality_score(
                 false,
                 vec![Violation {
-                    rule: "JSON_PARSE_ERROR".to_string(),
+                    rule: RULE_JSON_PARSE_ERROR.to_string(),
                     severity: Severity::High,
                     message: "Content is empty (expected valid JSON)".to_string(),
                     location: None,
@@ -88,7 +93,7 @@ impl GuardrailProvider for JsonSchemaGuardrail {
                 return Ok(GuardrailResult::without_quality_score(
                     false,
                     vec![Violation {
-                        rule: "JSON_PARSE_ERROR".to_string(),
+                        rule: RULE_JSON_PARSE_ERROR.to_string(),
                         severity: Severity::High,
                         message: format!("Content is not valid JSON: {e}"),
                         location: None,
@@ -115,7 +120,7 @@ impl GuardrailProvider for JsonSchemaGuardrail {
             .map(|error| {
                 let instance_path = error.instance_path().to_string();
                 Violation {
-                    rule: "JSON_SCHEMA_VIOLATION".to_string(),
+                    rule: RULE_JSON_SCHEMA_VIOLATION.to_string(),
                     severity: Severity::High,
                     message: error.to_string(),
                     location: if instance_path.is_empty() {
@@ -129,7 +134,7 @@ impl GuardrailProvider for JsonSchemaGuardrail {
 
         if total_errors > MAX_VIOLATIONS {
             violations.push(Violation {
-                rule: "JSON_SCHEMA_VIOLATION".to_string(),
+                rule: RULE_JSON_SCHEMA_VIOLATION.to_string(),
                 severity: Severity::Medium,
                 message: format!(
                     "... and {} more validation errors (showing first {} of {})",

@@ -334,17 +334,20 @@ async fn main() {
     // Run the main logic and handle errors
     match run(args).await {
         Ok(output) => {
+            use fortified_llm_client::constants::exit_codes;
             let exit_code = match output.error_code() {
-                Some("INPUT_VALIDATION_FAILED" | "OUTPUT_VALIDATION_FAILED") => 9,
-                Some("CONTEXT_LIMIT_EXCEEDED") => 2,
-                Some("FILE_TOO_LARGE") => 8,
-                Some(_) => 9, // Unknown structured error
-                None => 0,    // Success
+                Some("INPUT_VALIDATION_FAILED" | "OUTPUT_VALIDATION_FAILED") => {
+                    exit_codes::GUARDRAIL_FAILED
+                }
+                Some("CONTEXT_LIMIT_EXCEEDED") => exit_codes::CONTEXT_LIMIT_EXCEEDED,
+                Some("FILE_TOO_LARGE") => exit_codes::PDF_PROCESSING_FAILED,
+                Some(_) => exit_codes::GUARDRAIL_FAILED, // Unknown structured error
+                None => exit_codes::SUCCESS,
             };
             // Write output (to file or stdout)
             if let Err(e) = write_output(&output, output_path.as_ref()) {
                 eprintln!("Error writing output: {e}");
-                process::exit(1);
+                process::exit(exit_codes::IO_ERROR);
             }
             process::exit(exit_code);
         }

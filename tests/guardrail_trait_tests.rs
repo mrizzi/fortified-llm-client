@@ -1,6 +1,7 @@
 use fortified_llm_client::guardrails::{
-    config::RegexGuardrailConfig, json_schema::JsonSchemaGuardrail, GuardrailProvider,
-    RegexGuardrail, Severity,
+    config::RegexGuardrailConfig,
+    json_schema::{JsonSchemaGuardrail, RULE_JSON_SCHEMA_VIOLATION},
+    GuardrailProvider, RegexGuardrail, Severity,
 };
 use std::io::Write;
 
@@ -125,5 +126,5 @@ async fn test_json_schema_guardrail_rejects_invalid() {
     assert!(result
         .violations
         .iter()
-        .any(|v| v.rule == "JSON_SCHEMA_VIOLATION"));
+        .any(|v| v.rule == RULE_JSON_SCHEMA_VIOLATION));
 }
