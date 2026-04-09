@@ -1,12 +1,13 @@
 use crate::{
     error::CliError,
     guardrails::provider::{GuardrailProvider, GuardrailResult, Severity, Violation},
+    schema_validator,
 };
 use async_trait::async_trait;
 use std::path::PathBuf;
 
-/// Maximum number of schema validation errors to report.
-/// Prevents unbounded output when a response has many violations.
+/// Maximum number of schema validation errors to report individually.
+/// When exceeded, remaining errors are summarized in one additional entry.
 const MAX_VIOLATIONS: usize = 25;
 
 /// JSON Schema guardrail that validates content against a compiled JSON Schema.
@@ -16,6 +17,7 @@ const MAX_VIOLATIONS: usize = 25;
 #[derive(Debug)]
 pub struct JsonSchemaGuardrail {
     validator: jsonschema::Validator,
+    /// Retained for diagnostic logging only; not used for re-validation.
     schema_path: PathBuf,
 }
 
@@ -43,16 +45,14 @@ impl JsonSchemaGuardrail {
                 ))
             })?;
 
-        let validator = jsonschema::options()
-            .with_draft(jsonschema::Draft::Draft7)
-            .build(&schema_value)
-            .map_err(|e| {
-                CliError::InvalidArguments(format!(
-                    "JSON Schema guardrail: Schema file '{}' is not a valid JSON Schema: {}",
-                    schema_file.display(),
-                    e
-                ))
-            })?;
+        let validator = schema_validator::compile_json_schema(&schema_value).map_err(|_| {
+            // Re-wrap with guardrail-specific context including the file path
+            CliError::InvalidArguments(format!(
+                "JSON Schema guardrail: Schema file '{}' is not a valid JSON Schema. \
+                Run with --verbose for details.",
+                schema_file.display(),
+            ))
+        })?;
 
         log::info!(
             "JSON Schema guardrail initialized with schema from '{}'",
@@ -141,7 +141,7 @@ impl GuardrailProvider for JsonSchemaGuardrail {
             });
         }
 
-        log::debug!(
+        log::warn!(
             "JSON Schema validation failed with {} errors (schema: '{}')",
             total_errors,
             self.schema_path.display()

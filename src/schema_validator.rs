@@ -38,7 +38,19 @@ use serde_json::Value;
 /// # Ok::<(), fortified_llm_client::CliError>(())
 /// ```
 pub fn validate_json_schema(schema: &Value) -> Result<(), CliError> {
-    // Attempt to compile the schema - this validates it against Draft 7 metaschema
+    compile_json_schema(schema)?;
+    Ok(())
+}
+
+/// Compile a JSON Schema into a reusable validator.
+///
+/// Uses JSON Schema Draft 7 specification. Returns the compiled validator
+/// on success, or a detailed error if the schema is invalid.
+///
+/// This is the single point of schema compilation in the codebase. Both
+/// `validate_json_schema()` and the `JsonSchemaGuardrail` constructor
+/// use this function to ensure consistent Draft version and compilation options.
+pub fn compile_json_schema(schema: &Value) -> Result<jsonschema::Validator, CliError> {
     jsonschema::options()
         .with_draft(jsonschema::Draft::Draft7)
         .build(schema)
@@ -58,9 +70,7 @@ pub fn validate_json_schema(schema: &Value) -> Result<(), CliError> {
                 - JSON Schema specification: https://json-schema.org/draft-07/json-schema-release-notes.html\n\
                 - Schema validator: https://www.jsonschemavalidator.net/"
             ))
-        })?;
-
-    Ok(())
+        })
 }
 
 /// Perform basic sanity checks on a JSON Schema

@@ -15,7 +15,7 @@ JSON Schema guardrails validate that LLM output conforms to a specific JSON Sche
 
 **Speed**: <10ms (no LLM calls)
 **Cost**: Free (local validation)
-**Works for**: Both input and output validation (primarily output)
+**Works for**: Output validation (structured output enforcement)
 **Schema support**: JSON Schema Draft 7 (full keyword support)
 
 ## When to Use
@@ -125,7 +125,7 @@ type = "json_schema"
 schema_file = "schemas/requirements.json"
 ```
 
-With `sequential` execution and `all_must_pass` aggregation, the regex check runs first. If it fails, the JSON Schema check is skipped (short-circuit).
+With `sequential` execution and `all_must_pass` aggregation, the regex check runs first. If it fails, the JSON Schema check is skipped (short-circuit). With `any_can_pass`, short-circuiting occurs on the first *success* instead.
 
 ## Validation Behavior
 
@@ -171,12 +171,15 @@ When the guardrail rejects a response:
 | Scenario | Exit Code |
 |----------|-----------|
 | Success (guardrails passed) | 0 |
-| Guardrail rejection (input or output) | 9 |
+| I/O error writing output | 1 |
+| Context limit exceeded | 2 |
 | HTTP/network error | 3 |
 | Invalid response from LLM | 4 |
 | File not found | 5 |
 | Invalid arguments | 6 |
 | Auth failure | 7 |
+| PDF processing failed / file too large | 8 |
+| Guardrail rejection (input or output) | 9 |
 
 ### Constructor Errors
 

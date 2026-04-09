@@ -101,6 +101,18 @@ impl CliOutput {
         self.status == "error"
     }
 
+    /// Check if this output represents a guardrail validation failure
+    pub fn is_guardrail_failure(&self) -> bool {
+        self.error.as_ref().is_some_and(|e| {
+            e.code == "INPUT_VALIDATION_FAILED" || e.code == "OUTPUT_VALIDATION_FAILED"
+        })
+    }
+
+    /// Get the error code, if any
+    pub fn error_code(&self) -> Option<&str> {
+        self.error.as_ref().map(|e| e.code.as_str())
+    }
+
     /// Create an error output
     pub fn error(code: String, message: String, metadata: Metadata) -> Self {
         Self {
@@ -109,5 +121,84 @@ impl CliOutput {
             metadata,
             error: Some(ErrorInfo { code, message }),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_metadata() -> Metadata {
+        Metadata {
+            model: "test".to_string(),
+            tokens_estimated: 0,
+            latency_ms: 0,
+            timestamp: "2025-01-01T00:00:00Z".to_string(),
+            api_url: "http://test".to_string(),
+            provider: None,
+            temperature: 0.0,
+            max_tokens: None,
+            seed: None,
+            timeout_secs: 300,
+            context_limit: None,
+            response_format: None,
+            validate_tokens: false,
+            system_prompt_text: None,
+            system_prompt_file: None,
+            user_prompt_text: None,
+            user_prompt_file: None,
+            pdf_input: None,
+            input_guardrails_enabled: None,
+            output_guardrails_enabled: None,
+        }
+    }
+
+    #[test]
+    fn test_success_is_not_error() {
+        let output = CliOutput::success("hello".to_string(), test_metadata(), None);
+        assert!(!output.is_error());
+        assert!(!output.is_guardrail_failure());
+        assert!(output.error_code().is_none());
+    }
+
+    #[test]
+    fn test_error_is_error() {
+        let output = CliOutput::error("SOME_ERROR".to_string(), "msg".to_string(), test_metadata());
+        assert!(output.is_error());
+        assert_eq!(output.error_code(), Some("SOME_ERROR"));
+    }
+
+    #[test]
+    fn test_guardrail_failure_input() {
+        let output = CliOutput::error(
+            "INPUT_VALIDATION_FAILED".to_string(),
+            "msg".to_string(),
+            test_metadata(),
+        );
+        assert!(output.is_error());
+        assert!(output.is_guardrail_failure());
+    }
+
+    #[test]
+    fn test_guardrail_failure_output() {
+        let output = CliOutput::error(
+            "OUTPUT_VALIDATION_FAILED".to_string(),
+            "msg".to_string(),
+            test_metadata(),
+        );
+        assert!(output.is_error());
+        assert!(output.is_guardrail_failure());
+    }
+
+    #[test]
+    fn test_non_guardrail_error_is_not_guardrail_failure() {
+        let output = CliOutput::error(
+            "CONTEXT_LIMIT_EXCEEDED".to_string(),
+            "msg".to_string(),
+            test_metadata(),
+        );
+        assert!(output.is_error());
+        assert!(!output.is_guardrail_failure());
+        assert_eq!(output.error_code(), Some("CONTEXT_LIMIT_EXCEEDED"));
     }
 }

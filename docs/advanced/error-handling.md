@@ -54,6 +54,26 @@ match evaluate_with_guardrails(config.clone(), "config.toml").await {
 }
 ```
 
+## CLI Exit Codes
+
+The CLI uses specific exit codes for different failure types:
+
+| Exit Code | Error Code | Cause |
+|-----------|------------|-------|
+| 0 | - | Success |
+| 1 | - | I/O error writing output |
+| 2 | `CONTEXT_LIMIT_EXCEEDED` | Token count exceeds context window |
+| 3 | `HTTP_ERROR` | Network/HTTP request failure |
+| 4 | `INVALID_RESPONSE` | API response parsing failed |
+| 5 | `FILE_NOT_FOUND` | File read failure (prompts, PDF, config, schema) |
+| 6 | `INVALID_ARGUMENTS` | CLI argument or config validation failure |
+| 7 | `AUTH_FAILED` | API authentication failure |
+| 8 | `PDF_PROCESSING_FAILED` / `FILE_TOO_LARGE` | PDF extraction failure or file size limit |
+| 9 | `INPUT_VALIDATION_FAILED` / `OUTPUT_VALIDATION_FAILED` | Guardrail rejection |
+
+{: .note }
+> Exit codes 2-8 come from infrastructure errors (`Err` path). Exit code 9 comes from guardrail rejections that return structured JSON output with full metadata.
+
 ## Common Errors
 
 | Error | Cause | Recovery |
