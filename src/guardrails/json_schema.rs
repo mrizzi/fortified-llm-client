@@ -50,11 +50,9 @@ impl JsonSchemaGuardrail {
                 ))
             })?;
 
-        let validator = schema_validator::compile_json_schema(&schema_value).map_err(|_| {
-            // Re-wrap with guardrail-specific context including the file path
+        let validator = schema_validator::compile_json_schema(&schema_value).map_err(|e| {
             CliError::InvalidArguments(format!(
-                "JSON Schema guardrail: Schema file '{}' is not a valid JSON Schema. \
-                Run with --verbose for details.",
+                "JSON Schema guardrail: Schema file '{}' is not a valid JSON Schema: {e}",
                 schema_file.display(),
             ))
         })?;
