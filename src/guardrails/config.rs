@@ -172,6 +172,12 @@ pub enum GuardrailProviderConfig {
         api_key_name: Option<String>,
     },
 
+    /// JSON Schema guardrail (validates content against a JSON Schema file)
+    JsonSchema {
+        /// Path to the JSON Schema file (.json)
+        schema_file: PathBuf,
+    },
+
     /// Composite guardrail (combines multiple providers)
     Composite {
         providers: Vec<GuardrailProviderConfig>,
@@ -315,6 +321,10 @@ pub fn create_guardrail_provider(
                 ),
             ))
         }
+
+        GuardrailProviderConfig::JsonSchema { schema_file } => Ok(Box::new(
+            crate::guardrails::json_schema::JsonSchemaGuardrail::new(schema_file.clone())?,
+        )),
 
         GuardrailProviderConfig::Composite {
             providers,

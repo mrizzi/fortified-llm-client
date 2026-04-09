@@ -34,6 +34,7 @@ pub use guardrails::{
     HybridGuardrail,
 
     InputGuardrail,
+    JsonSchemaGuardrail,
     LlamaGuardCategory,
     LlamaGuardConfig,
     LlamaGuardProvider,

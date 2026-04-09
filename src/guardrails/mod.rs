@@ -1,6 +1,7 @@
 pub mod config;
 pub mod gpt_oss_safeguard;
 pub mod hybrid;
+pub mod json_schema;
 pub mod llama_guard;
 pub mod llama_prompt_guard;
 pub mod patterns;
@@ -20,6 +21,7 @@ pub use config::{
 };
 pub use gpt_oss_safeguard::{GptOssSafeguardConfig, GptOssSafeguardProvider};
 pub use hybrid::HybridGuardrail;
+pub use json_schema::JsonSchemaGuardrail;
 pub use llama_guard::{LlamaGuardCategory, LlamaGuardConfig, LlamaGuardProvider};
 pub use llama_prompt_guard::{
     LlamaPromptGuardConfig, LlamaPromptGuardProvider, LlamaPromptGuardResult,

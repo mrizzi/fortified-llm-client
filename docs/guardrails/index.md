@@ -12,13 +12,14 @@ Multi-layered security validation for LLM inputs and outputs.
 
 ## Overview
 
-Fortified LLM Client provides five types of guardrails to protect against unsafe or malicious LLM interactions:
+Fortified LLM Client provides six types of guardrails to protect against unsafe or malicious LLM interactions:
 
 1. **Regex** - Fast pattern-based validation (custom patterns, length limits)
-2. **Llama Guard** - MLCommons safety taxonomy (13 categories S1-S13)
-3. **Llama Prompt Guard** - Jailbreak detection
-4. **GPT OSS Safeguard** - GPT-4 based policy validation
-5. **Composite** - Composable multi-provider validation
+2. **JSON Schema** - Client-side JSON Schema validation (structured output enforcement)
+3. **Llama Guard** - MLCommons safety taxonomy (13 categories S1-S13)
+4. **Llama Prompt Guard** - Jailbreak detection
+5. **GPT OSS Safeguard** - GPT-4 based policy validation
+6. **Composite** - Composable multi-provider validation
 
 ## Key Concepts
 
@@ -110,6 +111,7 @@ MEDIUM | Email | [a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Z|a-z]{2,}
 | Type | Speed | Accuracy | Use Case |
 |------|-------|----------|----------|
 | **Regex** | Fast (<10ms) | Good | Custom patterns, length limits (input & output) |
+| **JSON Schema** | Fast (<10ms) | Exact | Structured output validation (Draft 7) |
 | **Llama Guard** | Slow (1-3s) | Excellent | Comprehensive safety (S1-S13) |
 | **Llama Prompt Guard** | Slow (1-3s) | Excellent | Advanced jailbreak detection |
 | **GPT OSS Safeguard** | Slow (2-5s) | Excellent | Custom policy validation |
@@ -118,6 +120,7 @@ MEDIUM | Email | [a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Z|a-z]{2,}
 ## Section Contents
 
 - **[Regex Guardrails]({{ site.baseurl }}{% link guardrails/regex.md %})** - Fast pattern-based validation (input & output)
+- **[JSON Schema Guardrails]({{ site.baseurl }}{% link guardrails/json-schema.md %})** - Client-side JSON Schema validation
 - **[Llama Guard]({{ site.baseurl }}{% link guardrails/llama-guard.md %})** - MLCommons safety taxonomy
 - **[Llama Prompt Guard]({{ site.baseurl }}{% link guardrails/llama-prompt-guard.md %})** - Jailbreak detection
 - **[GPT OSS Safeguard]({{ site.baseurl }}{% link guardrails/gpt-oss-safeguard.md %})** - Policy-based validation
