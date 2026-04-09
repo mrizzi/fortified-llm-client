@@ -334,17 +334,19 @@ async fn main() {
     // Run the main logic and handle errors
     match run(args).await {
         Ok(output) => {
-            let is_error = output.is_error();
+            let exit_code = match output.error_code() {
+                Some("INPUT_VALIDATION_FAILED" | "OUTPUT_VALIDATION_FAILED") => 9,
+                Some("CONTEXT_LIMIT_EXCEEDED") => 2,
+                Some("FILE_TOO_LARGE") => 8,
+                Some(_) => 9, // Unknown structured error
+                None => 0,    // Success
+            };
             // Write output (to file or stdout)
             if let Err(e) = write_output(&output, output_path.as_ref()) {
                 eprintln!("Error writing output: {e}");
                 process::exit(1);
             }
-            if is_error {
-                // Guardrail or evaluation error with structured output
-                process::exit(9);
-            }
-            process::exit(0);
+            process::exit(exit_code);
         }
         Err(e) => {
             // Create minimal error metadata (no config available)

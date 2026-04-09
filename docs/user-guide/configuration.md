@@ -156,6 +156,19 @@ HIGH | Toxic language | offensive|harmful
 MEDIUM | Inappropriate content | controversial
 ```
 
+### With JSON Schema Output Guardrails
+
+```toml
+api_url = "http://localhost:11434/v1/chat/completions"
+model = "llama3"
+
+[guardrails.output]
+type = "json_schema"
+schema_file = "schemas/requirements.json"
+```
+
+This validates LLM responses against the JSON Schema at runtime. If the response doesn't match the schema, the evaluation fails with `OUTPUT_VALIDATION_FAILED`. See [JSON Schema Guardrails]({{ site.baseurl }}{% link guardrails/json-schema.md %}) for details.
+
 ### With LLM-Based Guardrails (Llama Guard)
 
 ```toml

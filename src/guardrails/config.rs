@@ -468,6 +468,25 @@ mod tests {
     }
 
     #[test]
+    fn test_serde_json_schema_config() {
+        let config = GuardrailProviderConfig::JsonSchema {
+            schema_file: PathBuf::from("schemas/test.json"),
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("\"type\":\"json_schema\""));
+        assert!(json.contains("\"schema_file\":\"schemas/test.json\""));
+
+        let deserialized: GuardrailProviderConfig = serde_json::from_str(&json).unwrap();
+        match deserialized {
+            GuardrailProviderConfig::JsonSchema { schema_file } => {
+                assert_eq!(schema_file, PathBuf::from("schemas/test.json"));
+            }
+            _ => panic!("Should deserialize to JsonSchema"),
+        }
+    }
+
+    #[test]
     fn test_resolve_api_key_direct_value() {
         let result = resolve_api_key(&Some("test-key".to_string()), &None, "TestProvider");
         assert!(result.is_ok());

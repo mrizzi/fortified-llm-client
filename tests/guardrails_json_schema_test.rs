@@ -1,7 +1,7 @@
-//! Integration tests for the JSON Schema guardrail provider
+//! Integration tests for the JSON Schema guardrail provider.
 //!
-//! Tests cover: trait compliance, config parsing, full pipeline integration,
-//! composite guardrails, and edge cases.
+//! Tests cover: edge cases, complex schemas, full pipeline integration
+//! with mockito, composite guardrail scenarios, and violation cap behavior.
 
 use fortified_llm_client::guardrails::{
     json_schema::JsonSchemaGuardrail, GuardrailProvider, Severity,
@@ -347,4 +347,91 @@ async fn test_composite_regex_plus_json_schema() {
 
     let result = evaluate(config).await.unwrap();
     assert_eq!(result.status, "success");
+}
+
+#[tokio::test]
+async fn test_composite_json_schema_fails_within_composite() {
+    use fortified_llm_client::{
+        config_builder::ConfigBuilder, evaluate, guardrails::config::RegexGuardrailConfig,
+        AggregationMode, ExecutionMode, GuardrailProviderConfig, Severity as GuardrailSeverity,
+    };
+    use mockito::Server;
+
+    let schema_file = create_temp_schema(SIMPLE_SCHEMA);
+
+    let mut server = Server::new_async().await;
+    // LLM returns JSON that passes regex but fails schema (missing required "name")
+    let _mock = server
+        .mock("POST", "/v1/chat/completions")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            r#"{"choices": [{"message": {"role": "assistant", "content": "{\"age\": 30}"}}]}"#,
+        )
+        .create_async()
+        .await;
+
+    let config = ConfigBuilder::new()
+        .api_url(server.url() + "/v1/chat/completions")
+        .model("test-model")
+        .system_prompt("Extract data")
+        .user_prompt("test input")
+        .output_guardrails(GuardrailProviderConfig::Composite {
+            providers: vec![
+                GuardrailProviderConfig::Regex(RegexGuardrailConfig {
+                    max_length_bytes: 100000,
+                    patterns_file: None,
+                    severity_threshold: GuardrailSeverity::Medium,
+                }),
+                GuardrailProviderConfig::JsonSchema {
+                    schema_file: schema_file.path().to_path_buf(),
+                },
+            ],
+            execution: ExecutionMode::Sequential,
+            aggregation: AggregationMode::AllMustPass,
+        })
+        .build()
+        .unwrap();
+
+    let result = evaluate(config).await.unwrap();
+    assert_eq!(result.status, "error");
+    let error = result.error.unwrap();
+    assert_eq!(error.code, "OUTPUT_VALIDATION_FAILED");
+    assert!(error.message.contains("JSON_SCHEMA_VIOLATION"));
+}
+
+// --- MAX_VIOLATIONS cap ---
+
+#[tokio::test]
+async fn test_max_violations_capped() {
+    // Schema requiring 30+ fields — an empty object will produce 30+ violations
+    let mut properties = serde_json::Map::new();
+    let mut required = Vec::new();
+    for i in 0..30 {
+        let field = format!("field_{i}");
+        properties.insert(field.clone(), serde_json::json!({"type": "string"}));
+        required.push(serde_json::Value::String(field));
+    }
+    let schema = serde_json::json!({
+        "type": "object",
+        "properties": properties,
+        "required": required
+    });
+
+    let schema_file = create_temp_schema(&schema.to_string());
+    let guardrail = JsonSchemaGuardrail::new(schema_file.path().to_path_buf()).unwrap();
+
+    let result = guardrail.validate("{}").await.unwrap();
+    assert!(!result.passed);
+    // 25 individual violations + 1 summary = 26 max
+    assert!(
+        result.violations.len() <= 26,
+        "Expected at most 26 violations (25 + summary), got {}",
+        result.violations.len()
+    );
+    // Should have the summary violation
+    assert!(result
+        .violations
+        .iter()
+        .any(|v| v.message.contains("more validation errors")));
 }
