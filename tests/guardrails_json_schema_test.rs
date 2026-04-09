@@ -4,7 +4,8 @@
 //! with mockito, composite guardrail scenarios, and violation cap behavior.
 
 use fortified_llm_client::guardrails::{
-    json_schema::JsonSchemaGuardrail, GuardrailProvider, Severity,
+    json_schema::{JsonSchemaGuardrail, RULE_JSON_PARSE_ERROR, RULE_JSON_SCHEMA_VIOLATION},
+    GuardrailProvider, Severity,
 };
 use std::{io::Write, path::PathBuf};
 
@@ -52,7 +53,7 @@ async fn test_trait_implementation_invalid_content() {
     assert!(result
         .violations
         .iter()
-        .any(|v| v.rule == "JSON_SCHEMA_VIOLATION"));
+        .any(|v| v.rule == RULE_JSON_SCHEMA_VIOLATION));
     assert!(result
         .violations
         .iter()
@@ -69,7 +70,7 @@ async fn test_not_json() {
     let result = guardrail.validate("plain text response").await.unwrap();
     assert!(!result.passed);
     assert_eq!(result.violations.len(), 1);
-    assert_eq!(result.violations[0].rule, "JSON_PARSE_ERROR");
+    assert_eq!(result.violations[0].rule, RULE_JSON_PARSE_ERROR);
 }
 
 #[tokio::test]
@@ -79,7 +80,7 @@ async fn test_empty_string() {
 
     let result = guardrail.validate("").await.unwrap();
     assert!(!result.passed);
-    assert_eq!(result.violations[0].rule, "JSON_PARSE_ERROR");
+    assert_eq!(result.violations[0].rule, RULE_JSON_PARSE_ERROR);
     assert!(result.violations[0].message.contains("empty"));
 }
 
@@ -94,7 +95,7 @@ async fn test_wrong_json_type() {
     assert!(result
         .violations
         .iter()
-        .any(|v| v.rule == "JSON_SCHEMA_VIOLATION"));
+        .any(|v| v.rule == RULE_JSON_SCHEMA_VIOLATION));
 }
 
 #[tokio::test]
@@ -108,7 +109,7 @@ async fn test_violations_have_location() {
     let violation = result
         .violations
         .iter()
-        .find(|v| v.rule == "JSON_SCHEMA_VIOLATION")
+        .find(|v| v.rule == RULE_JSON_SCHEMA_VIOLATION)
         .unwrap();
     assert!(violation.location.is_some());
 }

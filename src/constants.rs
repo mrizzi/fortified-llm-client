@@ -69,6 +69,23 @@ pub mod http {
     pub const MAX_REDIRECTS: usize = 10;
 }
 
+/// CLI exit codes for structured error responses.
+///
+/// Exit codes 2-8 mirror `CliError::exit_code()` values.
+/// Exit code 9 is used for guardrail rejections that return structured JSON output.
+pub mod exit_codes {
+    pub const SUCCESS: i32 = 0;
+    pub const IO_ERROR: i32 = 1;
+    pub const CONTEXT_LIMIT_EXCEEDED: i32 = 2;
+    pub const HTTP_ERROR: i32 = 3;
+    pub const INVALID_RESPONSE: i32 = 4;
+    pub const FILE_NOT_FOUND: i32 = 5;
+    pub const INVALID_ARGUMENTS: i32 = 6;
+    pub const AUTH_FAILED: i32 = 7;
+    pub const PDF_PROCESSING_FAILED: i32 = 8;
+    pub const GUARDRAIL_FAILED: i32 = 9;
+}
+
 /// Guardrails defaults
 pub mod guardrails {
     /// Default minimum quality score for output (0-10 scale)
