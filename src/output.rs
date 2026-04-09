@@ -96,18 +96,6 @@ impl CliOutput {
         }
     }
 
-    /// Check if this output represents an error
-    pub fn is_error(&self) -> bool {
-        self.status == "error"
-    }
-
-    /// Check if this output represents a guardrail validation failure
-    pub fn is_guardrail_failure(&self) -> bool {
-        self.error.as_ref().is_some_and(|e| {
-            e.code == "INPUT_VALIDATION_FAILED" || e.code == "OUTPUT_VALIDATION_FAILED"
-        })
-    }
-
     /// Get the error code, if any
     pub fn error_code(&self) -> Option<&str> {
         self.error.as_ref().map(|e| e.code.as_str())
@@ -127,6 +115,18 @@ impl CliOutput {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    impl CliOutput {
+        fn is_error(&self) -> bool {
+            self.status == "error"
+        }
+
+        fn is_guardrail_failure(&self) -> bool {
+            self.error.as_ref().is_some_and(|e| {
+                e.code == "INPUT_VALIDATION_FAILED" || e.code == "OUTPUT_VALIDATION_FAILED"
+            })
+        }
+    }
 
     fn test_metadata() -> Metadata {
         Metadata {
